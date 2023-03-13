@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <thread>
 #include <vector>
+#include <sstream>
+#include <valarray>
 
 using namespace std;
 using namespace std::chrono;
@@ -283,6 +285,7 @@ static void load_fens(const DataSource& source, const parameters_t& parameters, 
         Entry entry;
         entry.white_to_move = get_fen_color_to_move(fen);
         entry.wdl = get_fen_wdl(fen, entry.white_to_move, source.side_to_move_wdl);
+
         get_coefficient_entries(eval_result.coefficients, entry.coefficients, static_cast<int32_t>(parameters.size()));
 #if TAPERED
         entry.phase = get_phase(fen);
@@ -291,6 +294,9 @@ static void load_fens(const DataSource& source, const parameters_t& parameters, 
         if constexpr (TuneEval::includes_additional_score)
         {
             const tune_t score = linear_eval(entry, parameters);
+            //if (int (score) != int(eval_result.score)) {
+            //    break;
+            //}
             entry.additional_score = eval_result.score - score;
         }
 

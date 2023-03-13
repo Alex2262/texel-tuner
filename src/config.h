@@ -5,13 +5,13 @@
 #include "engines/fourku.h"
 #include "engines/toy.h"
 #include "engines/toy_tapered.h"
+#include "engines/altair.h"
 
 #define TAPERED 1
-//using TuneEval = Toy::ToyEval;
-//using TuneEval = Toy::ToyEvalTapered;
-using TuneEval = Fourku::FourkuEval;
-constexpr int32_t thread_count = 12;
-constexpr double preferred_k = 0;
-constexpr bool retune_from_zero = true;
+
+using TuneEval = Altair::AltairEval;
+constexpr int32_t thread_count = 4;
+constexpr double preferred_k = 3;
+constexpr bool retune_from_zero = false;
 
 #endif // !CONFIG_H

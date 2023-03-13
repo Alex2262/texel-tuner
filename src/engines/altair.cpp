@@ -1,0 +1,1214 @@
+//
+// Created by Alex Tian on 2/24/2023.
+//
+
+#include "altair.h"
+#include <iostream>
+#include <array>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+using namespace Altair;
+
+//
+// Created by Alex Tian on 9/29/2022.
+//
+
+
+
+template <typename Out>
+void split(const std::string &s, char delim, Out result) {
+    std::istringstream iss(s);
+    std::string item;
+    while (std::getline(iss, item, delim)) {
+        *result++ = item;
+    }
+}
+
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split(s, delim, std::back_inserter(elems));
+    return elems;
+}
+
+
+int piece_to_num(char piece) {
+
+    auto it = std::find(std::begin(PIECE_MATCHER), std::end(PIECE_MATCHER), piece);
+    return it - std::begin(PIECE_MATCHER);
+}
+
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
+class Position {
+
+public:
+
+    Position() = default;
+
+    PLY_TYPE set_fen(const std::string& fen_string);
+
+    PIECE_TYPE board[120]{};
+    SQUARE_TYPE piece_list_index[120] = {NO_PIECE_INDEX};
+
+    std::vector<PIECE_TYPE> white_pieces;
+    std::vector<PIECE_TYPE> black_pieces;
+
+    SQUARE_TYPE king_positions[2]{};
+
+    SQUARE_TYPE pawn_rank[2][10]{};
+
+    SQUARE_TYPE castle_ability_bits = 0;
+    SQUARE_TYPE ep_square = 0;
+    SQUARE_TYPE side = 0;
+
+    inline void update_piece_list_index(SQUARE_TYPE left_range, SQUARE_TYPE right_range, SQUARE_TYPE side_to_use) {
+        if (!side_to_use) {
+            for (int i = left_range; i < right_range; i++) {
+                piece_list_index[white_pieces[i]] = i;
+            }
+        } else {
+            for (int i = left_range; i < right_range; i++) {
+                piece_list_index[black_pieces[i]] = i;
+            }
+        }
+    }
+
+
+};
+
+
+PLY_TYPE Position::set_fen(const std::string& fen_string) {
+
+    std::vector<std::string> fen_tokens = split(fen_string, ' ');
+
+    // Setting the padding around the 8x8 board inscribed within the 10x12 board
+    SQUARE_TYPE pos = 0;
+
+    white_pieces.clear();
+    black_pieces.clear();
+
+    for (SQUARE_TYPE& i : piece_list_index) {
+        i = NO_PIECE_INDEX;
+    }
+
+    for (int i = 0; i < 21; i++) {
+        board[pos++] = PADDING;
+    }
+
+    // Parsing the main 8x8 board part while adding appropriate padding
+    for (char c : fen_tokens[0]) {
+
+        if (c == '/') {
+
+            board[pos++] = PADDING;
+            board[pos++] = PADDING;
+
+        }
+        else if (std::isdigit(c)) {
+
+            for (int empty_amt = 0; empty_amt < c - '0'; empty_amt++) {
+                board[pos++] = EMPTY;
+            }
+
+        }
+        else if (std::isalpha(c)) {
+
+            board[pos] = piece_to_num(c);
+
+            if (std::isupper(c)) {
+                white_pieces.push_back(pos);
+                piece_list_index[pos] = white_pieces.size() - 1;
+            }
+            else {
+                black_pieces.push_back(pos);
+                piece_list_index[pos] = black_pieces.size() - 1;
+            }
+
+            if (c == 'K') king_positions[0] = pos;
+            else if (c == 'k') king_positions[1] = pos;
+
+            pos++;
+
+        }
+    }
+
+    for (int i = 0; i < 21; i++) {
+        board[pos++] = PADDING;
+    }
+
+    castle_ability_bits = 0;
+    for (char c : fen_tokens[2]) {
+
+        if (c == 'K') castle_ability_bits |= 1;
+        else if (c == 'Q') castle_ability_bits |= 2;
+        else if (c == 'k') castle_ability_bits |= 4;
+        else if (c == 'q') castle_ability_bits |= 8;
+
+    }
+
+    if (fen_tokens[3].size() > 1) {
+        SQUARE_TYPE square = (8 - (fen_tokens[3][1] - '0')) * 8 + fen_tokens[3][0] - 'a';
+        ep_square = STANDARD_TO_MAILBOX[square];
+    }
+    else {
+        ep_square = 0;
+    }
+
+    side = 0;
+    if (fen_tokens[1] == "b") side = 1;
+
+    if (fen_tokens.size() >= 5) {
+        if (!is_number(fen_tokens[4])) return 0;
+        return static_cast<PLY_TYPE>(std::stoi(fen_tokens[4]));
+    }
+    else return 0;
+}
+
+
+// ------------------------------------------- EVALUATION -----------------------------------------------------
+
+
+
+SCORE_TYPE evaluate_king_pawn(const Position& position, SQUARE_TYPE file, bool is_white, Trace& trace) {
+    SCORE_TYPE score = 0;
+
+    if (is_white) {
+        if (position.pawn_rank[0][file] == 3) score += KING_PAWN_SHIELD_OUR_PENALTIES[0];  // Pawn moved one square
+        else if (position.pawn_rank[0][file] == 4) score += KING_PAWN_SHIELD_OUR_PENALTIES[1];  // Pawn moved two squares
+        else if (position.pawn_rank[0][file] != 2) score += KING_PAWN_SHIELD_OUR_PENALTIES[2];  // Pawn moved > 2 squares, or it doesn't exist
+
+        if (position.pawn_rank[1][file] == 0) score += KING_PAWN_SHIELD_OPP_PENALTIES[0];  // No enemy pawn on this file
+        else if (position.pawn_rank[1][file] == 4) score += KING_PAWN_SHIELD_OPP_PENALTIES[1];  // Enemy pawn is on the 4th rank
+        else if (position.pawn_rank[1][file] != 3) score += KING_PAWN_SHIELD_OPP_PENALTIES[2];  // Enemy pawn is on the 3rd rank
+    }
+
+    else {
+        if (position.pawn_rank[1][file] == 6) score += KING_PAWN_SHIELD_OUR_PENALTIES[0];  // Pawn moved one square
+        else if (position.pawn_rank[1][file] == 5) score += KING_PAWN_SHIELD_OUR_PENALTIES[1];  // Pawn moved two squares
+        else if (position.pawn_rank[1][file] != 7) score += KING_PAWN_SHIELD_OUR_PENALTIES[2];  // Pawn moved > 2 squares, or it doesn't exist
+
+        if (position.pawn_rank[0][file] == 9) score += KING_PAWN_SHIELD_OPP_PENALTIES[0];  // No enemy pawn on this file
+        else if (position.pawn_rank[0][file] == 5) score += KING_PAWN_SHIELD_OPP_PENALTIES[1];  // Enemy pawn is on the 5th rank
+        else if (position.pawn_rank[0][file] != 6) score += KING_PAWN_SHIELD_OPP_PENALTIES[2];  // Enemy pawn is on the 6th rank
+    }
+
+    return static_cast<SCORE_TYPE>(score * KING_PAWN_SHIELD_COEFFICIENTS[file - 1]);
+}
+
+
+void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    SQUARE_TYPE row = 8 - i / 8, col = i % 8 + 1;
+
+    if (is_white) {
+
+        scores.mid += PAWN_PST_MID[i];
+        scores.end += PAWN_PST_END[i];
+        trace.pawn_pst[i][WHITE_COLOR]++;
+
+        // Doubled pawns. The pawn we are checking is higher in row compared to
+        // the least advanced pawn in our column.
+        if (row > position.pawn_rank[0][col]) {
+            scores.mid += DOUBLED_PAWN_PENALTY_MID;
+            scores.end += DOUBLED_PAWN_PENALTY_END;
+            trace.doubled_pawns[WHITE_COLOR]++;
+        }
+
+        // Isolated pawns. We do not have pawns on the columns next to our pawn.
+        if (position.pawn_rank[0][col - 1] == 9 && position.pawn_rank[0][col + 1] == 9) {
+            // If our opponent does not have a pawn in front of our pawn
+            if (position.pawn_rank[1][col] == 0) {
+                // The isolated pawn in the middle game is worse if the opponent
+                // has the semi open file to attack it.
+                scores.mid += ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_MID;
+                scores.end += ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_END;
+                trace.isolated_pawns_semi_open_file[WHITE_COLOR]++;
+            }
+            else {
+                scores.mid += ISOLATED_PAWN_PENALTY_MID;
+                scores.end += ISOLATED_PAWN_PENALTY_END;
+                trace.isolated_pawns[WHITE_COLOR]++;
+            }
+        }
+
+        // Backwards pawn
+        else if (row < position.pawn_rank[0][col - 1] && row < position.pawn_rank[0][col + 1]) {
+            // In the middle game it's worse to have a very backwards pawn
+            // since then, the 'forwards' pawns won't be protected
+            scores.mid += BACKWARDS_PAWN_PENALTY_MID -
+                          2 * (position.pawn_rank[0][col - 1] - row + position.pawn_rank[0][col + 1] - row - 2);
+
+            // In the end game the backwards pawn should be worse, but if it's very backwards it's not awful.
+            scores.end += BACKWARDS_PAWN_PENALTY_END -
+                          (position.pawn_rank[0][col - 1] - row + position.pawn_rank[0][col + 1] - row - 2);
+
+            trace.backward_pawns[WHITE_COLOR]++;
+
+            // If there's no enemy pawn in front of our pawn then it's even worse, since
+            // we allow outposts and pieces to attack us easily
+            if (position.pawn_rank[1][col] == 0) {
+                scores.mid += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_MID;
+                scores.end += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END;
+                trace.backward_pawns_semi_open_file[WHITE_COLOR]++;
+            }
+        }
+
+        // Passed Pawn Bonus
+        if (row >= position.pawn_rank[1][col - 1] &&
+            row >= position.pawn_rank[1][col] &&
+            row >= position.pawn_rank[1][col + 1]) {
+
+            scores.mid += PASSED_PAWN_BONUSES_MID[row - 1];
+            scores.end += PASSED_PAWN_BONUSES_END[row - 1];
+            trace.passed_pawns[row - 1][WHITE_COLOR]++;
+
+            // Blocker right in front of pawn
+            if (WHITE_KING < position.board[pos - 10] && position.board[pos - 10] < EMPTY) {
+                scores.mid += BLOCKER_VALUES_MID[position.board[pos - 10] - 6];
+                scores.end += BLOCKER_VALUES_END[position.board[pos - 10] - 6];
+                trace.blockers[position.board[pos - 10] - 6][WHITE_COLOR]++;
+            }
+
+            // Blocker two squares in front of pawn
+            if (row < 7 && WHITE_KING < position.board[pos - 20] && position.board[pos - 20] < EMPTY) {
+                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos - 20] - 6];
+                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos - 20] - 6];
+                trace.blockers_two_squares[position.board[pos - 20] - 6][WHITE_COLOR]++;
+            }
+        }
+    }
+
+    else {
+
+        scores.mid += PAWN_PST_MID[i ^ 56];
+        scores.end += PAWN_PST_END[i ^ 56];
+        trace.pawn_pst[i ^ 56][BLACK_COLOR]++;
+
+        // Doubled pawns. The pawn we are checking is higher in row compared to
+        // the least advanced pawn in our column.
+        if (row < position.pawn_rank[1][col]) {
+            scores.mid += DOUBLED_PAWN_PENALTY_MID;
+            scores.end += DOUBLED_PAWN_PENALTY_END;
+            trace.doubled_pawns[BLACK_COLOR]++;
+        }
+
+        // Isolated pawns. We do not have pawns on the columns next to our pawn.
+        if (position.pawn_rank[1][col - 1] == 0 && position.pawn_rank[1][col + 1] == 0) {
+            // If our opponent does not have a pawn in front of our pawn
+            if (position.pawn_rank[0][col] == 9) {
+                // The isolated pawn in the middle game is worse if the opponent
+                // has the semi open file to attack it.
+                scores.mid += ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_MID;
+                scores.end += ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_END;
+                trace.isolated_pawns_semi_open_file[BLACK_COLOR]++;
+            }
+            else {
+                scores.mid += ISOLATED_PAWN_PENALTY_MID;
+                scores.end += ISOLATED_PAWN_PENALTY_END;
+                trace.isolated_pawns[BLACK_COLOR]++;
+            }
+        }
+
+        // Backwards pawn
+        else if (row > position.pawn_rank[1][col - 1] && row > position.pawn_rank[1][col + 1]) {
+            // In the middle game it's worse to have a very backwards pawn
+            // since then, the 'forwards' pawns won't be protected
+            scores.mid += BACKWARDS_PAWN_PENALTY_MID -
+                          2 * (row - position.pawn_rank[1][col - 1] + row - position.pawn_rank[1][col + 1] - 2);
+
+            // In the end game the backwards pawn should be worse, but if it's very backwards it's not awful.
+            scores.end += BACKWARDS_PAWN_PENALTY_END +
+                          (row - position.pawn_rank[1][col - 1] + row - position.pawn_rank[1][col + 1] - 2);
+
+            trace.backward_pawns[BLACK_COLOR]++;
+
+            // If there's no enemy pawn in front of our pawn then it's even worse, since
+            // we allow outposts and pieces to attack us easily
+            if (position.pawn_rank[0][col] == 9) {
+                scores.mid += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_MID;
+                scores.end += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END;
+                trace.backward_pawns_semi_open_file[BLACK_COLOR]++;
+            }
+        }
+
+        // Passed Pawn Bonus
+        if (row <= position.pawn_rank[0][col - 1] &&
+            row <= position.pawn_rank[0][col] &&
+            row <= position.pawn_rank[0][col + 1]) {
+
+            scores.mid += PASSED_PAWN_BONUSES_MID[8 - row];
+            scores.end += PASSED_PAWN_BONUSES_END[8 - row];
+
+            trace.passed_pawns[8 - row][BLACK_COLOR]++;
+
+            // Blocker right in front of pawn
+            if (position.board[pos + 10] < BLACK_PAWN) {
+                scores.mid += BLOCKER_VALUES_MID[position.board[pos + 10]];
+                scores.end += BLOCKER_VALUES_END[position.board[pos + 10]];
+                trace.blockers[position.board[pos + 10]][BLACK_COLOR]++;
+            }
+
+            // Blocker two squares in front of pawn
+            if (row > 2 && position.board[pos + 20] < BLACK_PAWN) {
+                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos + 20]];
+                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos + 20]];
+                trace.blockers_two_squares[position.board[pos + 20]][BLACK_COLOR]++;
+            }
+        }
+    }
+}
+
+
+void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    SCORE_TYPE mobility = 0;
+
+    if (is_white) {
+        scores.mid += KNIGHT_PST_MID[i];
+        scores.end += KNIGHT_PST_END[i];
+        trace.knight_pst[i][WHITE_COLOR]++;
+
+        // Calculate Mobility
+        for (short increment : WHITE_INCREMENTS[WHITE_KNIGHT]) {
+            SQUARE_TYPE new_pos = pos + increment;
+            PIECE_TYPE occupied = position.board[new_pos];
+
+            if (occupied == PADDING) continue;
+
+            // If we hit a piece of ours, we still add 1 to mobility because
+            // that means we are protecting a piece of ours.
+            if (occupied < BLACK_PAWN) {
+                mobility += 1;
+                continue;
+            }
+
+            // If there is an enemy pawn controlling this square then we deduct 2.
+            if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                mobility -= 2;
+
+            // Attacking pieces means more pressure which is good
+            if (occupied < EMPTY) {
+                mobility += PIECE_ATTACK_MOBILITY[occupied - BLACK_PAWN] - PIECE_ATTACK_MOBILITY_PENALTY[WHITE_KNIGHT];
+                continue;
+            }
+
+            mobility += 2;
+        }
+    }
+    else {
+        scores.mid += KNIGHT_PST_MID[i ^ 56];
+        scores.end += KNIGHT_PST_END[i ^ 56];
+        trace.knight_pst[i ^ 56][BLACK_COLOR]++;
+
+        // Calculate Mobility
+        for (short increment : BLACK_INCREMENTS[WHITE_KNIGHT]) {
+            SQUARE_TYPE new_pos = pos + increment;
+            PIECE_TYPE occupied = position.board[new_pos];
+
+            if (occupied == PADDING) continue;
+
+            // If we hit a piece of ours, we still add 1 to mobility because
+            // that means we are protecting a piece of ours.
+            if (WHITE_KING < occupied && occupied < EMPTY) {
+                mobility += 1;
+                continue;
+            }
+
+            // If there is an enemy pawn controlling this square then we deduct 2.
+            if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                mobility -= 2;
+
+            // Attacking pieces means more pressure which is good
+            if (occupied < BLACK_PAWN) {
+                mobility += PIECE_ATTACK_MOBILITY[occupied] - PIECE_ATTACK_MOBILITY_PENALTY[WHITE_KNIGHT];
+                continue;
+            }
+
+            mobility += 2;
+
+
+        }
+    }
+
+    // Knights are good protectors for the king
+    double distance_to_our_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(!is_white)]]);
+    scores.mid -= static_cast<SQUARE_TYPE>(OUR_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_our_king);
+    scores.end -= static_cast<SQUARE_TYPE>(OUR_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_our_king);
+
+    // Knights are also very good at attacking the opponents king
+    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_opp_king);
+    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_opp_king);
+
+    scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_KNIGHT];
+    scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_KNIGHT];
+
+    // std::cout << "KNIGHT MOBILITY: " << mobility << std::endl;
+}
+
+
+void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    double mobility = 0;
+
+    if (is_white) {
+        scores.mid += BISHOP_PST_MID[i];
+        scores.end += BISHOP_PST_END[i];
+        trace.bishop_pst[i][WHITE_COLOR]++;
+
+        // Calculate Mobility
+        for (short increment : WHITE_INCREMENTS[WHITE_BISHOP]) {
+            SQUARE_TYPE new_pos = pos;
+            if (!increment) break;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (occupied < BLACK_PAWN) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                    mobility -= 2;
+
+                // Attacking pieces means more pressure which is good
+                if (occupied < EMPTY) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied - BLACK_PAWN] -
+                                PIECE_ATTACK_MOBILITY_PENALTY[WHITE_BISHOP];
+                    break;
+                }
+
+                mobility += 2;
+            }
+        }
+    }
+    else {
+        scores.mid += BISHOP_PST_MID[i ^ 56];
+        scores.end += BISHOP_PST_END[i ^ 56];
+        trace.bishop_pst[i ^ 56][BLACK_COLOR]++;
+
+        // Calculate Mobility
+        for (short increment : BLACK_INCREMENTS[WHITE_BISHOP]) {
+            SQUARE_TYPE new_pos = pos;
+            if (!increment) break;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (WHITE_KING < occupied && occupied < EMPTY) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                    mobility -= 2;
+
+                // Attacking pieces means more pressure which is good
+                if (occupied < BLACK_PAWN) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied] - PIECE_ATTACK_MOBILITY_PENALTY[WHITE_BISHOP];
+                    break;
+                }
+
+                mobility += 2;
+            }
+        }
+    }
+
+    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_BISHOP] * distance_to_opp_king);
+    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_BISHOP] * distance_to_opp_king);
+
+    scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_BISHOP];
+    scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_BISHOP];
+    // std::cout << "BISHOP MOBILITY: " << mobility << std::endl;
+}
+
+
+void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    SQUARE_TYPE col = i % 8 + 1;
+    SCORE_TYPE mobility = 0;
+
+    if (is_white) {
+        scores.mid += ROOK_PST_MID[i];
+        scores.end += ROOK_PST_END[i];
+        trace.rook_pst[i][WHITE_COLOR]++;
+
+        if (position.pawn_rank[0][col] == 9) {
+            if (position.pawn_rank[1][col] == 0) {
+                scores.mid += ROOK_OPEN_FILE_BONUS_MID;
+                scores.end += ROOK_OPEN_FILE_BONUS_END;
+                trace.rook_open[WHITE_COLOR]++;
+            }
+            else {
+                scores.mid += ROOK_SEMI_OPEN_FILE_BONUS_MID;
+                scores.end += ROOK_SEMI_OPEN_FILE_BONUS_END;
+                trace.rook_semi_open[WHITE_COLOR]++;
+            }
+        }
+
+        // Calculate Mobility
+        for (short increment : WHITE_INCREMENTS[WHITE_ROOK]) {
+            SQUARE_TYPE new_pos = pos;
+            if (!increment) break;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (occupied < BLACK_PAWN) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If we hit an enemy piece, get a score of 2.
+                // An empty square may be even better, so you get a score 3.
+                if (occupied < EMPTY) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied - BLACK_PAWN] -
+                                PIECE_ATTACK_MOBILITY_PENALTY[WHITE_ROOK];
+                    break;
+                }
+
+                mobility += 3;
+            }
+        }
+    }
+    else {
+        scores.mid += ROOK_PST_MID[i ^ 56];
+        scores.end += ROOK_PST_END[i ^ 56];
+        trace.rook_pst[i ^ 56][BLACK_COLOR]++;
+
+        if (position.pawn_rank[1][col] == 0) {
+            if (position.pawn_rank[0][col] == 9) {
+                scores.mid += ROOK_OPEN_FILE_BONUS_MID;
+                scores.end += ROOK_OPEN_FILE_BONUS_END;
+                trace.rook_open[BLACK_COLOR]++;
+            }
+            else {
+                scores.mid += ROOK_SEMI_OPEN_FILE_BONUS_MID;
+                scores.end += ROOK_SEMI_OPEN_FILE_BONUS_END;
+                trace.rook_semi_open[BLACK_COLOR]++;
+            }
+        }
+
+        // Calculate Mobility
+        for (short increment : BLACK_INCREMENTS[WHITE_ROOK]) {
+            SQUARE_TYPE new_pos = pos;
+            if (!increment) break;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (WHITE_KING < occupied && occupied < EMPTY) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If we hit an enemy piece, get a score of 2.
+                // An empty square may be even better, so you get a score 3.
+                if (occupied < BLACK_PAWN) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied] - PIECE_ATTACK_MOBILITY_PENALTY[WHITE_ROOK];
+                    break;
+                }
+
+                mobility += 3;
+            }
+        }
+    }
+
+    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_ROOK] * distance_to_opp_king);
+    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_ROOK] * distance_to_opp_king);
+
+    scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_ROOK];  // Already gets open + semi-open file bonuses
+    scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_ROOK];  // Active rooks in the endgame are very important
+
+    // std::cout << "ROOK MOBILITY: " << mobility << std::endl;
+}
+
+
+void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    SQUARE_TYPE col = i % 8 + 1;
+    SCORE_TYPE mobility = 0;
+
+    if (is_white) {
+        scores.mid += QUEEN_PST_MID[i];
+        scores.end += QUEEN_PST_END[i];
+        trace.queen_pst[i][WHITE_COLOR]++;
+
+        if (position.pawn_rank[0][col] == 9) {
+            if (position.pawn_rank[1][col] == 0) {
+                scores.mid += QUEEN_OPEN_FILE_BONUS_MID;
+                scores.end += QUEEN_OPEN_FILE_BONUS_END;
+                trace.queen_open[WHITE_COLOR]++;
+            }
+            else {
+                scores.mid += QUEEN_SEMI_OPEN_FILE_BONUS_MID;
+                scores.end += QUEEN_SEMI_OPEN_FILE_BONUS_END;
+                trace.queen_semi_open[WHITE_COLOR]++;
+            }
+        }
+
+        // Calculate Mobility
+        for (short increment : WHITE_INCREMENTS[WHITE_QUEEN]) {
+            SQUARE_TYPE new_pos = pos;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (occupied < BLACK_PAWN) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If we hit an enemy piece, get a score of 2.
+                // An empty square may be even better, so you get a score 3.
+                if (occupied < EMPTY) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied - BLACK_PAWN] -
+                                PIECE_ATTACK_MOBILITY_PENALTY[WHITE_QUEEN];
+                    break;
+                }
+
+                mobility += 3;
+            }
+        }
+    }
+    else {
+        scores.mid += QUEEN_PST_MID[i ^ 56];
+        scores.end += QUEEN_PST_END[i ^ 56];
+        trace.queen_pst[i ^ 56][BLACK_COLOR]++;
+
+        if (position.pawn_rank[1][col] == 0) {
+            if (position.pawn_rank[0][col] == 9) {
+                scores.mid += QUEEN_OPEN_FILE_BONUS_MID;
+                scores.end += QUEEN_OPEN_FILE_BONUS_END;
+                trace.queen_open[BLACK_COLOR]++;
+            }
+            else {
+                scores.mid += QUEEN_SEMI_OPEN_FILE_BONUS_MID;
+                scores.end += QUEEN_SEMI_OPEN_FILE_BONUS_END;
+                trace.queen_semi_open[BLACK_COLOR]++;
+            }
+        }
+
+        // Calculate Mobility
+        for (short increment : BLACK_INCREMENTS[WHITE_QUEEN]) {
+            SQUARE_TYPE new_pos = pos;
+
+            while (true) {
+                new_pos += increment;
+                PIECE_TYPE occupied = position.board[new_pos];
+
+                if (occupied == PADDING) break;
+
+                // If we hit a piece of ours, we still add 1 to mobility because
+                // that means we are protecting a piece of ours.
+                if (WHITE_KING < occupied && occupied < EMPTY) {
+                    mobility += 1;
+                    break;
+                }
+
+                // If we hit an enemy piece, get a score of 2.
+                // An empty square may be even better, so you get a score 3.
+                if (occupied < BLACK_PAWN) {
+                    mobility += PIECE_ATTACK_MOBILITY[occupied] - PIECE_ATTACK_MOBILITY_PENALTY[WHITE_QUEEN];
+                    break;
+                }
+
+                mobility += 3;
+            }
+        }
+    }
+
+    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_QUEEN] * distance_to_opp_king);
+    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_QUEEN] * distance_to_opp_king);
+
+    scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_QUEEN];  // Already gets open + semi-open file bonuses
+    scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_QUEEN];  // Active queen in the endgame is pretty important
+
+    // std::cout << "QUEEN MOBILITY: " << mobility << std::endl;
+}
+
+void evaluate_king(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
+    SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+    SQUARE_TYPE col = i % 8 + 1;
+
+    if (is_white) {
+        scores.mid += KING_PST_MID[i];
+        scores.end += KING_PST_END[i];
+        trace.king_pst[i][WHITE_COLOR]++;
+
+        if (col < 4) {  // Queen side
+            scores.mid += evaluate_king_pawn(position, 1, true, trace);
+            scores.mid += evaluate_king_pawn(position, 2, true, trace);
+            scores.mid += evaluate_king_pawn(position, 3, true, trace);
+        }
+        else if (col > 5) {
+            scores.mid += evaluate_king_pawn(position, 8, true, trace);
+            scores.mid += evaluate_king_pawn(position, 7, true, trace);
+            scores.mid += evaluate_king_pawn(position, 6, true, trace);
+        }
+        else {
+            for (SQUARE_TYPE pawn_file = col - 1; pawn_file < col + 2; pawn_file++) {
+                if (position.pawn_rank[0][pawn_file] == 9) {
+                    scores.mid -= 6;
+                    if (position.pawn_rank[1][pawn_file] == 0) {
+                        scores.mid -= 13;
+                    }
+                }
+            }
+        }
+    }
+    else {
+        scores.mid += KING_PST_MID[i ^ 56];
+        scores.end += KING_PST_END[i ^ 56];
+        trace.king_pst[i ^ 56][BLACK_COLOR]++;
+
+        if (col < 4) {  // Queen side
+            scores.mid += evaluate_king_pawn(position, 1, false, trace); // A file pawn
+            scores.mid += evaluate_king_pawn(position, 2, false, trace);
+            scores.mid += evaluate_king_pawn(position, 3, false, trace); // C file pawn
+        }
+        else if (col > 5) {
+            scores.mid += evaluate_king_pawn(position, 8, false, trace); // H file pawn
+            scores.mid += evaluate_king_pawn(position, 7, false, trace);
+            scores.mid += evaluate_king_pawn(position, 6, false, trace); // F file pawn
+        }
+        else {
+            for (SQUARE_TYPE pawn_file = col - 1; pawn_file < col + 2; pawn_file++) {
+                if (position.pawn_rank[1][pawn_file] == 0) {
+                    scores.mid -= 6;
+                    if (position.pawn_rank[0][pawn_file] == 9) {
+                        scores.mid -= 13;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+double evaluate_drawishness(const int white_piece_amounts[6], const int black_piece_amounts[6],
+                            SCORE_TYPE white_material, SCORE_TYPE black_material, bool opp_colored_bishops) {
+
+    // return a decimal from 0.0 - 1.0 that will multiply the eval by
+
+    if (white_piece_amounts[WHITE_QUEEN] + black_piece_amounts[WHITE_QUEEN] > 0) return 1.0;
+    if (white_piece_amounts[WHITE_ROOK] + black_piece_amounts[WHITE_ROOK] >= 3) return 1.0;
+    if (white_piece_amounts[WHITE_PAWN] + black_piece_amounts[WHITE_PAWN] >= 1) {
+        if (white_piece_amounts[1] + white_piece_amounts[3] +
+            black_piece_amounts[1] + black_piece_amounts[3] >= 1) return 1.0;
+
+        if (white_piece_amounts[2] == 1 && black_piece_amounts[2] == 1 && opp_colored_bishops) {
+            double pawn_difference = static_cast<double>(std::max(white_piece_amounts[0], black_piece_amounts[0])) /
+                                     std::max(1, std::min(white_piece_amounts[0], black_piece_amounts[0]));
+
+            return std::min(0.05 + pawn_difference *
+                                   pawn_difference * 0.12, 1.0);
+        }
+
+        return 1.0;
+    }
+    if (white_material <= PIECE_VALUES_MID[WHITE_BISHOP] && black_material <= PIECE_VALUES_MID[WHITE_BISHOP])
+        return 0.0;
+    if (white_material <= 2 * PIECE_VALUES_MID[WHITE_BISHOP] && black_material <= 2 * PIECE_VALUES_MID[WHITE_BISHOP]) {
+
+        // With only 2 knights, it's impossible to checkmate
+        if (white_piece_amounts[WHITE_KNIGHT] == 2 || black_piece_amounts[WHITE_KNIGHT] == 2)
+            return 0.0;
+
+        // If one of them has 0 pieces we know that due to the check above, at least one of has more than
+        // a bishop's worth of material, or else it would have returned 0.0, and thus it would be a win.
+        // Either the player that doesn't have 0 material has two bishops, a bishop and knight, or a rook.
+        // All of these are wins.
+        if (white_material == 0 || black_material == 0) {
+            return 1.0;
+        }
+
+        // Here we know they both do not have 0 material, and they cannot have pawns or queens,
+        // this means they either have a rook, and the other player has a minor piece,
+        // or this means one player has two minor pieces, and the other players has one minor piece.
+
+        return 0.2;
+    }
+
+    if (white_material <= PIECE_VALUES_MID[WHITE_ROOK] + PIECE_VALUES_MID[WHITE_BISHOP] &&
+        black_material == PIECE_VALUES_MID[WHITE_ROOK]) return 0.23;
+
+    if (black_material <= PIECE_VALUES_MID[WHITE_ROOK] + PIECE_VALUES_MID[WHITE_BISHOP] &&
+        white_material == PIECE_VALUES_MID[WHITE_ROOK]) return 0.23;
+
+    return 1.0;
+
+}
+
+
+SCORE_TYPE evaluate(Position& position, Trace& trace) {
+
+    Score_Struct white_material{};
+    Score_Struct white_scores{};
+
+    Score_Struct black_material{};
+    Score_Struct black_scores{};
+
+    int game_phase = 0;
+    int white_piece_amounts[6] = {0};
+    int black_piece_amounts[6] = {0};
+    int bishop_colors[2] = {0};
+
+    // We make a 10 size array for each side, and eight of them are used for storing
+    // the least advanced pawn. Storing this allows us to check for passed pawns,
+    // backwards pawns, isolated pawns and whatnot.
+    // Having a ten element array gives padding on the side to prevent out of bounds exceptions.
+
+    for (int i = 0; i < 10; i++) {
+        position.pawn_rank[0][i] = 9;
+        position.pawn_rank[1][i] = 0;
+    }
+
+    for (SQUARE_TYPE pos : position.white_pieces) {
+        PIECE_TYPE piece = position.board[pos];
+        SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+        SQUARE_TYPE row = 8 - i / 8, col = i % 8 + 1;
+
+        if (piece == WHITE_PAWN && row < position.pawn_rank[0][col]) position.pawn_rank[0][col] = row;
+    }
+
+    for (SQUARE_TYPE pos : position.black_pieces) {
+        PIECE_TYPE piece = position.board[pos];
+        SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
+        SQUARE_TYPE row = 8 - i / 8, col = i % 8 + 1;
+
+        if (piece == BLACK_PAWN && row > position.pawn_rank[1][col]) position.pawn_rank[1][col] = row;
+    }
+
+    for (SQUARE_TYPE pos : position.white_pieces) {
+        PIECE_TYPE piece = position.board[pos];
+        SQUARE_TYPE standard_pos = MAILBOX_TO_STANDARD[pos];
+
+        game_phase += GAME_PHASE_SCORES[piece];
+        white_piece_amounts[piece]++;
+
+        white_material.mid += PIECE_VALUES_MID[piece];
+        white_material.end += PIECE_VALUES_END[piece];
+        trace.material[piece][0]++;
+        // std::cout << piece << std::endl;
+
+        // std::cout << white_scores.mid << " " << white_scores.end << std::endl;
+        if (piece == WHITE_PAWN) evaluate_pawn(position, white_scores, pos, true, trace);
+        else if (piece == WHITE_KNIGHT) evaluate_knight(position, white_scores, pos, true, trace);
+        else if (piece == WHITE_BISHOP) {
+            bishop_colors[0] = SQUARE_COLOR[standard_pos];
+            evaluate_bishop(position, white_scores, pos, true, trace);
+        }
+        else if (piece == WHITE_ROOK) evaluate_rook(position, white_scores, pos, true, trace);
+        else if (piece == WHITE_QUEEN) evaluate_queen(position, white_scores, pos, true, trace);
+        else if (piece == WHITE_KING) evaluate_king(position, white_scores, pos, true, trace);
+
+        // std::cout << white_scores.mid << " " << white_scores.end << std::endl;
+    }
+
+    for (SQUARE_TYPE pos : position.black_pieces) {
+        PIECE_TYPE piece = position.board[pos];
+        SQUARE_TYPE standard_pos = MAILBOX_TO_STANDARD[pos];
+
+        game_phase += GAME_PHASE_SCORES[piece-6];
+        black_piece_amounts[piece-6]++;
+
+        black_material.mid += PIECE_VALUES_MID[piece - BLACK_PAWN];
+        black_material.end += PIECE_VALUES_END[piece - BLACK_PAWN];
+        trace.material[piece - BLACK_PAWN][1]++;
+        // std::cout << piece << std::endl;
+
+        // std::cout << black_scores.mid << " " << black_scores.end << std::endl;
+        if (piece == BLACK_PAWN) evaluate_pawn(position, black_scores, pos, false, trace);
+        else if (piece == BLACK_KNIGHT) evaluate_knight(position, black_scores, pos, false, trace);
+        else if (piece == BLACK_BISHOP) {
+            bishop_colors[1] = SQUARE_COLOR[standard_pos];
+            evaluate_bishop(position, black_scores, pos, false, trace);
+        }
+        else if (piece == BLACK_ROOK) evaluate_rook(position, black_scores, pos, false, trace);
+        else if (piece == BLACK_QUEEN) evaluate_queen(position, black_scores, pos, false, trace);
+        else if (piece == BLACK_KING) evaluate_king(position, black_scores, pos, false, trace);
+
+        // std::cout << black_scores.mid << " " << black_scores.end << std::endl;
+    }
+
+    if (white_piece_amounts[WHITE_BISHOP] >= 2) {
+        white_scores.mid += BISHOP_PAIR_BONUS_MID;
+        white_scores.end += BISHOP_PAIR_BONUS_END;
+        trace.bishop_bonus[0]++;
+    }
+
+    if (black_piece_amounts[WHITE_BISHOP] >= 2) {
+        black_scores.mid += BISHOP_PAIR_BONUS_MID;
+        black_scores.end += BISHOP_PAIR_BONUS_END;
+        trace.bishop_bonus[1]++;
+    }
+
+    white_scores.mid += white_material.mid;
+    white_scores.end += white_material.end;
+
+    black_scores.mid += black_material.mid;
+    black_scores.end += black_material.end;
+
+    double drawishness = evaluate_drawishness(white_piece_amounts, black_piece_amounts,
+                                              white_material.mid, black_material.mid,
+                                              bishop_colors[0] != bishop_colors[1]);
+
+    white_scores.end *= drawishness;
+    black_scores.end *= drawishness;
+
+    if (game_phase > 24) game_phase = 24; // In case of early promotions
+    SCORE_TYPE white_score = (white_scores.mid * game_phase +
+                              (24 - game_phase) * white_scores.end) / 24;
+
+    SCORE_TYPE black_score = (black_scores.mid * game_phase +
+                              (24 - game_phase) * black_scores.end) / 24;
+
+    // std::cout << white_score << " " << black_score << std::endl;
+
+    return (white_score - black_score) + TEMPO_BONUS;
+}
+
+
+static void print_parameter(std::stringstream& ss, const tune_t parameter)
+{
+    const auto param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
+    auto param_size = std::to_string(param).size();
+    for (int i = 0; i < 4 - param_size; i++) {
+        ss << " ";
+    }
+    ss << param;
+}
+
+static void print_single(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name)
+{
+    ss << "constexpr SCORE_TYPE " << name << "_MID = ";
+    print_parameter(ss, parameters[index][0]);
+    ss << ";" << endl;
+
+    ss << "constexpr SCORE_TYPE " << name << "_END = ";
+    print_parameter(ss, parameters[index][1]);
+    ss << ";\n" << endl;
+
+    index++;
+}
+
+static void print_array(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count)
+{
+    ss << "constexpr SCORE_TYPE " << name << "_MID[" << std::to_string(count) << "] = {";
+    string out = "constexpr SCORE_TYPE " + name + "_MID[" + std::to_string(count) + "] = {";
+    auto indent = out.size();
+
+    for (auto i = 0; i < count; i++)
+    {
+        print_parameter(ss, parameters[index][0]);
+        index++;
+
+        if (i != count - 1)
+        {
+            ss << ",";
+        }
+
+        if (count == 64 && (i + 1) % 8 == 0) {
+            ss << "\n";
+            for (auto j = 0; j < indent; j++) {
+                ss << " ";
+            }
+        }
+
+    }
+    ss << "}; \n" << endl;
+
+    index -= count;
+
+    ss << "constexpr SCORE_TYPE " << name << "_END[" << std::to_string(count) << "] = {";
+    for (auto i = 0; i < count; i++)
+    {
+        print_parameter(ss, parameters[index][1]);
+        index++;
+
+        if (i != count - 1)
+        {
+            ss << ",";
+        }
+
+        if (count == 64 && (i + 1) % 8 == 0) {
+            ss << "\n";
+            for (auto j = 0; j < indent; j++) {
+                ss << " ";
+            }
+        }
+
+    }
+    ss << "}; \n" << endl;
+}
+
+
+static coefficients_t get_coefficients(const Trace& trace)
+{
+    coefficients_t coefficients;
+    get_coefficient_array(coefficients, trace.material, 6);
+
+    get_coefficient_array(coefficients, trace.pawn_pst, 64);
+    get_coefficient_array(coefficients, trace.knight_pst, 64);
+    get_coefficient_array(coefficients, trace.bishop_pst, 64);
+    get_coefficient_array(coefficients, trace.rook_pst, 64);
+    get_coefficient_array(coefficients, trace.queen_pst, 64);
+    get_coefficient_array(coefficients, trace.king_pst, 64);
+
+    get_coefficient_array(coefficients, trace.passed_pawns, 8);
+
+    get_coefficient_single(coefficients, trace.isolated_pawns);
+    get_coefficient_single(coefficients, trace.isolated_pawns_semi_open_file);
+
+    get_coefficient_single(coefficients, trace.doubled_pawns);
+
+    get_coefficient_single(coefficients, trace.backward_pawns);
+    get_coefficient_single(coefficients, trace.backward_pawns_semi_open_file);
+
+    get_coefficient_array(coefficients, trace.blockers, 6);
+    get_coefficient_array(coefficients, trace.blockers_two_squares, 6);
+
+    get_coefficient_single(coefficients, trace.rook_semi_open);
+    get_coefficient_single(coefficients, trace.rook_open);
+
+    get_coefficient_single(coefficients, trace.queen_semi_open);
+    get_coefficient_single(coefficients, trace.queen_open);
+
+    get_coefficient_single(coefficients, trace.bishop_bonus);
+
+    return coefficients;
+}
+
+
+parameters_t AltairEval::get_initial_parameters() {
+    parameters_t parameters;
+    get_initial_parameter_array_double(parameters, PIECE_VALUES_MID, PIECE_VALUES_END, 6);
+
+    get_initial_parameter_array_double(parameters, PAWN_PST_MID, PAWN_PST_END, 64);
+    get_initial_parameter_array_double(parameters, KNIGHT_PST_MID, KNIGHT_PST_END, 64);
+    get_initial_parameter_array_double(parameters, BISHOP_PST_MID, BISHOP_PST_END, 64);
+    get_initial_parameter_array_double(parameters, ROOK_PST_MID, ROOK_PST_END, 64);
+    get_initial_parameter_array_double(parameters, QUEEN_PST_MID, QUEEN_PST_END, 64);
+    get_initial_parameter_array_double(parameters, KING_PST_MID, KING_PST_END, 64);
+
+    get_initial_parameter_array_double(parameters, PASSED_PAWN_BONUSES_MID, PASSED_PAWN_BONUSES_END, 8);
+
+    get_initial_parameter_single_double(parameters, ISOLATED_PAWN_PENALTY_MID, ISOLATED_PAWN_PENALTY_END);
+    get_initial_parameter_single_double(parameters, ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_MID, ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_END);
+
+    get_initial_parameter_single_double(parameters, DOUBLED_PAWN_PENALTY_MID, DOUBLED_PAWN_PENALTY_END);
+
+    get_initial_parameter_single_double(parameters, BACKWARDS_PAWN_PENALTY_MID, BACKWARDS_PAWN_PENALTY_END);
+    get_initial_parameter_single_double(parameters, BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_MID, BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END);
+
+    get_initial_parameter_array_double(parameters, BLOCKER_VALUES_MID, BLOCKER_VALUES_END, 6);
+    get_initial_parameter_array_double(parameters, BLOCKER_TWO_SQUARE_VALUES_MID, BLOCKER_TWO_SQUARE_VALUES_END, 6);
+
+    get_initial_parameter_single_double(parameters, ROOK_SEMI_OPEN_FILE_BONUS_MID, ROOK_SEMI_OPEN_FILE_BONUS_END);
+    get_initial_parameter_single_double(parameters, ROOK_OPEN_FILE_BONUS_MID, ROOK_OPEN_FILE_BONUS_END);
+
+    get_initial_parameter_single_double(parameters, QUEEN_SEMI_OPEN_FILE_BONUS_MID, QUEEN_SEMI_OPEN_FILE_BONUS_END);
+    get_initial_parameter_single_double(parameters, QUEEN_OPEN_FILE_BONUS_MID, QUEEN_OPEN_FILE_BONUS_END);
+
+    get_initial_parameter_single_double(parameters, BISHOP_PAIR_BONUS_MID, BISHOP_PAIR_BONUS_END);
+
+    return parameters;
+}
+
+
+EvalResult AltairEval::get_fen_eval_result(const string &fen) {
+    Position position;
+    position.set_fen(fen);
+
+    Trace trace{};
+    trace.score = evaluate(position, trace);
+
+    EvalResult result;
+    result.coefficients = get_coefficients(trace);
+    result.score = trace.score;
+
+    return result;
+}
+
+
+void AltairEval::print_parameters(const parameters_t &parameters) {
+    parameters_t parameters_copy = parameters;
+
+    int index = 0;
+    stringstream ss;
+
+    print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
+
+    print_array(ss, parameters_copy, index, "PAWN_PST", 64);
+    print_array(ss, parameters_copy, index, "KNIGHT_PST", 64);
+    print_array(ss, parameters_copy, index, "BISHOP_PST", 64);
+    print_array(ss, parameters_copy, index, "ROOK_PST", 64);
+    print_array(ss, parameters_copy, index, "QUEEN_PST", 64);
+    print_array(ss, parameters_copy, index, "KING_PST", 64);
+
+    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8);
+
+    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY");
+    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY");
+
+    print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
+
+    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
+    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY");
+
+    print_array(ss, parameters_copy, index, "BLOCKER_VALUES", 6);
+    print_array(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6);
+
+    print_single(ss, parameters_copy, index, "ROOK_SEMI_OPEN_FILE_BONUS");
+    print_single(ss, parameters_copy, index, "ROOK_OPEN_FILE_BONUS");
+
+    print_single(ss, parameters_copy, index, "QUEEN_SEMI_OPEN_FILE_BONUS");
+    print_single(ss, parameters_copy, index, "QUEEN_OPEN_FILE_BONUS");
+
+    print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
+
+    std::cout << ss.str() << "\n";
+}

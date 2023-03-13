@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 using namespace std;
 using namespace Fourku;

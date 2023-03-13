@@ -3,6 +3,8 @@
 
 #include <array>
 #include <vector>
+#include <cstdint>
+#include "iostream"
 
 #define TAPERED 1
 
@@ -58,7 +60,7 @@ void get_initial_parameter_single(parameters_t& parameters, const T& parameter)
 #if TAPERED
     const auto mg = mg_score(static_cast<int32_t>(parameter));
     const auto eg = eg_score(static_cast<int32_t>(parameter));
-    const pair_t pair = { mg, eg };
+    pair_t pair = { (double) mg, (double) eg };
     parameters.push_back(pair);
 #else
     parameters.push_back(static_cast<tune_t>(parameter));
@@ -83,6 +85,30 @@ void get_initial_parameter_array_2d(parameters_t& parameters, const T& parameter
     }
 }
 
+template<typename T>
+void get_initial_parameter_single_double(parameters_t& parameters, const T& mg, const T& eg)
+{
+    pair_t pair = { (double) mg, (double) eg };
+    parameters.push_back(pair);
+}
+
+template<typename T>
+void get_initial_parameter_array_double(parameters_t& parameters, const T& mg, const T& eg, const int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        get_initial_parameter_single_double(parameters, mg[i], eg[i]);
+    }
+}
+
+template<typename T>
+void get_initial_parameter_array_2d_double(parameters_t& parameters, const T& mg, const T& eg, const int size1, const int size2)
+{
+    for (int i = 0; i < size1; i++)
+    {
+        get_initial_parameter_array_double(parameters, mg[i], eg[i], size2);
+    }
+}
 
 template<typename T>
 void get_coefficient_single(coefficients_t& coefficients, const T& trace)
