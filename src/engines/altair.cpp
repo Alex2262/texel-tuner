@@ -312,9 +312,14 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
             row >= position.pawn_rank[1][col] &&
             row >= position.pawn_rank[1][col + 1]) {
 
-            scores.mid += PASSED_PAWN_BONUSES_MID[row - 1];
-            scores.end += PASSED_PAWN_BONUSES_END[row - 1];
-            trace.passed_pawns[row - 1][WHITE_COLOR]++;
+            int protectors = 0;
+            if (position.board[pos + 11] == WHITE_PAWN) protectors++;
+            if (position.board[pos + 9] == WHITE_PAWN) protectors++;
+
+            scores.mid += PASSED_PAWN_BONUSES_MID[protectors][row - 1];
+            scores.end += PASSED_PAWN_BONUSES_END[protectors][row - 1];
+
+            trace.passed_pawns[protectors][row - 1][WHITE_COLOR]++;
 
             // Blocker right in front of pawn
             if (WHITE_KING < position.board[pos - 10] && position.board[pos - 10] < EMPTY) {
@@ -388,10 +393,14 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
             row <= position.pawn_rank[0][col] &&
             row <= position.pawn_rank[0][col + 1]) {
 
-            scores.mid += PASSED_PAWN_BONUSES_MID[8 - row];
-            scores.end += PASSED_PAWN_BONUSES_END[8 - row];
+            int protectors = 0;
+            if (position.board[pos - 11] == BLACK_PAWN) protectors++;
+            if (position.board[pos - 9] == BLACK_PAWN) protectors++;
 
-            trace.passed_pawns[8 - row][BLACK_COLOR]++;
+            scores.mid += PASSED_PAWN_BONUSES_MID[protectors][8 - row];
+            scores.end += PASSED_PAWN_BONUSES_END[protectors][8 - row];
+
+            trace.passed_pawns[protectors][8 - row][BLACK_COLOR]++;
 
             // Blocker right in front of pawn
             if (position.board[pos + 10] < BLACK_PAWN) {
@@ -1196,7 +1205,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.queen_pst, 64);
     get_coefficient_array(coefficients, trace.king_pst, 64);
 
-    get_coefficient_array(coefficients, trace.passed_pawns, 8);
+    get_coefficient_array_2d(coefficients, trace.passed_pawns, 3, 8);
 
     get_coefficient_single(coefficients, trace.isolated_pawns);
     get_coefficient_single(coefficients, trace.isolated_pawns_semi_open_file);
@@ -1245,7 +1254,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_double(parameters, QUEEN_PST_MID, QUEEN_PST_END, 64);
     get_initial_parameter_array_double(parameters, KING_PST_MID, KING_PST_END, 64);
 
-    get_initial_parameter_array_double(parameters, PASSED_PAWN_BONUSES_MID, PASSED_PAWN_BONUSES_END, 8);
+    get_initial_parameter_array_2d_double(parameters, PASSED_PAWN_BONUSES_MID, PASSED_PAWN_BONUSES_END, 3, 8);
 
     get_initial_parameter_single_double(parameters, ISOLATED_PAWN_PENALTY_MID, ISOLATED_PAWN_PENALTY_END);
     get_initial_parameter_single_double(parameters, ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_MID, ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY_END);
@@ -1313,7 +1322,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "QUEEN_PST", 64, false);
     print_array(ss, parameters_copy, index, "KING_PST", 64, false);
 
-    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8, false);
+    print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 3, 8, false);
 
     print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY", false);
     print_single(ss, parameters_copy, index, "ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY", false);

@@ -166,8 +166,13 @@ constexpr int KING_PAWN_SHIELD_OPP_PENALTIES_END[3][8] = {{-6, -14, -23, 0, 0, -
 constexpr SCORE_TYPE PIECE_VALUES_MID[6] = {82, 326, 352, 486, 982, 0};
 constexpr SCORE_TYPE PIECE_VALUES_END[6] = {96, 292, 304, 512, 936, 0};
 
-constexpr SCORE_TYPE PASSED_PAWN_BONUSES_MID[8] = {0,   5,  18,  27,  45,  60,  78,   0};
-constexpr SCORE_TYPE PASSED_PAWN_BONUSES_END[8] = {0,  25,  40,  50,  80, 100, 130,   0};
+constexpr SCORE_TYPE PASSED_PAWN_BONUSES_MID[3][8] = {{0, 3, -6, -9, 9, 28, 107, 0},
+                                                      {0, 3, -6, -9, 9, 28, 107, 0},
+                                                      {0, 3, -6, -9, 9, 28, 107, 0}};
+
+constexpr SCORE_TYPE PASSED_PAWN_BONUSES_END[3][8] = {{0, 3, -6, -9, 9, 28, 107, 0},
+                                                      {0, 3, -6, -9, 9, 28, 107, 0},
+                                                      {0, 3, -6, -9, 9, 28, 107, 0}};
 
 constexpr SCORE_TYPE BLOCKER_VALUES_MID[6] = {0, -31, -14, -22,  -8,  -3};
 constexpr SCORE_TYPE BLOCKER_VALUES_END[6] = {0, -37, -21, -26, -11, -28};
@@ -333,7 +338,7 @@ struct Trace {
     short queen_pst[64][2]{};
     short king_pst[64][2]{};
 
-    short passed_pawns[8][2]{};
+    short passed_pawns[3][8][2]{};
     short isolated_pawns[2]{};
     short isolated_pawns_semi_open_file[2]{};
     short doubled_pawns[2]{};
