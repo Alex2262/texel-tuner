@@ -8,7 +8,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include <algorithm>
+#include <iomanip>
 
 using namespace std;
 using namespace Altair;
@@ -179,30 +179,75 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
 
 
 
-SCORE_TYPE evaluate_king_pawn(const Position& position, SQUARE_TYPE file, bool is_white, Trace& trace) {
-    SCORE_TYPE score = 0;
-
+void evaluate_king_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE file, bool is_white, Trace& trace) {
+    SQUARE_TYPE col = file - 1;
     if (is_white) {
-        if (position.pawn_rank[0][file] == 3) score += KING_PAWN_SHIELD_OUR_PENALTIES[0];  // Pawn moved one square
-        else if (position.pawn_rank[0][file] == 4) score += KING_PAWN_SHIELD_OUR_PENALTIES[1];  // Pawn moved two squares
-        else if (position.pawn_rank[0][file] != 2) score += KING_PAWN_SHIELD_OUR_PENALTIES[2];  // Pawn moved > 2 squares, or it doesn't exist
+        if (position.pawn_rank[0][file] == 3) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[0][col];  // Pawn moved one square
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[0][col];  // Pawn moved one square
+            trace.own_king_pawn_shield[0][col][WHITE_COLOR]++;
+        }
+        else if (position.pawn_rank[0][file] == 4) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[1][col];  // Pawn moved two squares
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[1][col];  // Pawn moved two squares
+            trace.own_king_pawn_shield[1][col][WHITE_COLOR]++;
+        }
+        else if (position.pawn_rank[0][file] != 2) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[2][col];  // Pawn moved > 2 squares, or it doesn't exist
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[2][col];  // Pawn moved > 2 squares, or it doesn't exist
+            trace.own_king_pawn_shield[2][col][WHITE_COLOR]++;
+        }
 
-        if (position.pawn_rank[1][file] == 0) score += KING_PAWN_SHIELD_OPP_PENALTIES[0];  // No enemy pawn on this file
-        else if (position.pawn_rank[1][file] == 4) score += KING_PAWN_SHIELD_OPP_PENALTIES[1];  // Enemy pawn is on the 4th rank
-        else if (position.pawn_rank[1][file] != 3) score += KING_PAWN_SHIELD_OPP_PENALTIES[2];  // Enemy pawn is on the 3rd rank
+        if (position.pawn_rank[1][file] == 0) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[0][col];
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[0][col];
+            trace.opp_king_pawn_shield[0][col][WHITE_COLOR]++;
+        }
+        else if (position.pawn_rank[1][file] == 4) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[1][col];  // Enemy pawn is on the 4th rank
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[1][col];  // Enemy pawn is on the 4th rank
+            trace.opp_king_pawn_shield[1][col][WHITE_COLOR]++;
+        }
+        else if (position.pawn_rank[1][file] == 3) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[2][col];  // Enemy pawn is on the 3rd rank
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[2][col];  // Enemy pawn is on the 3rd rank
+            trace.opp_king_pawn_shield[2][col][WHITE_COLOR]++;
+        }
     }
 
     else {
-        if (position.pawn_rank[1][file] == 6) score += KING_PAWN_SHIELD_OUR_PENALTIES[0];  // Pawn moved one square
-        else if (position.pawn_rank[1][file] == 5) score += KING_PAWN_SHIELD_OUR_PENALTIES[1];  // Pawn moved two squares
-        else if (position.pawn_rank[1][file] != 7) score += KING_PAWN_SHIELD_OUR_PENALTIES[2];  // Pawn moved > 2 squares, or it doesn't exist
+        if (position.pawn_rank[1][file] == 6) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[0][col];  // Pawn moved one square
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[0][col];  // Pawn moved one square
+            trace.own_king_pawn_shield[0][col][BLACK_COLOR]++;
+        }
+        else if (position.pawn_rank[1][file] == 5) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[1][col];  // Pawn moved two squares
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[1][col];  // Pawn moved two squares
+            trace.own_king_pawn_shield[1][col][BLACK_COLOR]++;
+        }
+        else if (position.pawn_rank[1][file] != 7) {
+            scores.mid += KING_PAWN_SHIELD_OWN_PENALTIES_MID[2][col];  // Pawn moved > 2 squares, or it doesn't exist
+            scores.end += KING_PAWN_SHIELD_OWN_PENALTIES_END[2][col];  // Pawn moved > 2 squares, or it doesn't exist
+            trace.own_king_pawn_shield[2][col][BLACK_COLOR]++;
+        }
 
-        if (position.pawn_rank[0][file] == 9) score += KING_PAWN_SHIELD_OPP_PENALTIES[0];  // No enemy pawn on this file
-        else if (position.pawn_rank[0][file] == 5) score += KING_PAWN_SHIELD_OPP_PENALTIES[1];  // Enemy pawn is on the 5th rank
-        else if (position.pawn_rank[0][file] != 6) score += KING_PAWN_SHIELD_OPP_PENALTIES[2];  // Enemy pawn is on the 6th rank
+        if (position.pawn_rank[0][file] == 9) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[0][col];  // No enemy pawn on this file
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[0][col];  // No enemy pawn on this file
+            trace.opp_king_pawn_shield[0][col][BLACK_COLOR]++;
+        }
+        else if (position.pawn_rank[0][file] == 5) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[1][col];  // Enemy pawn is on the 5th rank
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[1][col];  // Enemy pawn is on the 5th rank
+            trace.opp_king_pawn_shield[1][col][BLACK_COLOR]++;
+        }
+        else if (position.pawn_rank[0][file] == 6) {
+            scores.mid += KING_PAWN_SHIELD_OPP_PENALTIES_MID[2][col];  // Enemy pawn is on the 6th rank
+            scores.end += KING_PAWN_SHIELD_OPP_PENALTIES_END[2][col];  // Enemy pawn is on the 6th rank
+            trace.opp_king_pawn_shield[2][col][BLACK_COLOR]++;
+        }
     }
-
-    return static_cast<SCORE_TYPE>(score * KING_PAWN_SHIELD_COEFFICIENTS[file - 1]);
 }
 
 
@@ -246,12 +291,10 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         else if (row < position.pawn_rank[0][col - 1] && row < position.pawn_rank[0][col + 1]) {
             // In the middle game it's worse to have a very backwards pawn
             // since then, the 'forwards' pawns won't be protected
-            scores.mid += BACKWARDS_PAWN_PENALTY_MID -
-                          2 * (position.pawn_rank[0][col - 1] - row + position.pawn_rank[0][col + 1] - row - 2);
+            scores.mid += BACKWARDS_PAWN_PENALTY_MID;
 
             // In the end game the backwards pawn should be worse, but if it's very backwards it's not awful.
-            scores.end += BACKWARDS_PAWN_PENALTY_END -
-                          (position.pawn_rank[0][col - 1] - row + position.pawn_rank[0][col + 1] - row - 2);
+            scores.end += BACKWARDS_PAWN_PENALTY_END;
 
             trace.backward_pawns[WHITE_COLOR]++;
 
@@ -324,12 +367,10 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         else if (row > position.pawn_rank[1][col - 1] && row > position.pawn_rank[1][col + 1]) {
             // In the middle game it's worse to have a very backwards pawn
             // since then, the 'forwards' pawns won't be protected
-            scores.mid += BACKWARDS_PAWN_PENALTY_MID -
-                          2 * (row - position.pawn_rank[1][col - 1] + row - position.pawn_rank[1][col + 1] - 2);
+            scores.mid += BACKWARDS_PAWN_PENALTY_MID;
 
             // In the end game the backwards pawn should be worse, but if it's very backwards it's not awful.
-            scores.end += BACKWARDS_PAWN_PENALTY_END +
-                          (row - position.pawn_rank[1][col - 1] + row - position.pawn_rank[1][col + 1] - 2);
+            scores.end += BACKWARDS_PAWN_PENALTY_END;
 
             trace.backward_pawns[BLACK_COLOR]++;
 
@@ -442,17 +483,20 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
     }
 
     // Knights are good protectors for the king
-    double distance_to_our_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(!is_white)]]);
-    scores.mid -= static_cast<SQUARE_TYPE>(OUR_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_our_king);
-    scores.end -= static_cast<SQUARE_TYPE>(OUR_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_our_king);
+    SCORE_TYPE distance_to_our_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(!is_white)]]);
+    scores.mid += static_cast<SQUARE_TYPE>(OWN_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_our_king);
+    scores.end += static_cast<SQUARE_TYPE>(OWN_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_our_king);
+    trace.own_king_tropism[WHITE_KNIGHT][!is_white] += distance_to_our_king;
 
     // Knights are also very good at attacking the opponents king
-    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_opp_king);
-    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_opp_king);
+    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_opp_king);
+    scores.end += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_opp_king);
+    trace.opp_king_tropism[WHITE_KNIGHT][!is_white] += distance_to_opp_king;
 
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_KNIGHT];
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_KNIGHT];
+    trace.mobility[WHITE_KNIGHT][!is_white] += mobility;
 
     // std::cout << "KNIGHT MOBILITY: " << mobility << std::endl;
 }
@@ -460,7 +504,7 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
 
 void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
-    double mobility = 0;
+    SCORE_TYPE mobility = 0;
 
     if (is_white) {
         scores.mid += BISHOP_PST_MID[i];
@@ -538,12 +582,14 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
         }
     }
 
-    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_BISHOP] * distance_to_opp_king);
-    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_BISHOP] * distance_to_opp_king);
+    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_BISHOP] * distance_to_opp_king);
+    scores.end += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_BISHOP] * distance_to_opp_king);
+    trace.opp_king_tropism[WHITE_BISHOP][!is_white] += distance_to_opp_king;
 
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_BISHOP];
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_BISHOP];
+    trace.mobility[WHITE_BISHOP][!is_white] += mobility;
     // std::cout << "BISHOP MOBILITY: " << mobility << std::endl;
 }
 
@@ -649,12 +695,14 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         }
     }
 
-    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_ROOK] * distance_to_opp_king);
-    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_ROOK] * distance_to_opp_king);
+    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_ROOK] * distance_to_opp_king);
+    scores.end += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_ROOK] * distance_to_opp_king);
+    trace.opp_king_tropism[WHITE_ROOK][!is_white] += distance_to_opp_king;
 
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_ROOK];  // Already gets open + semi-open file bonuses
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_ROOK];  // Active rooks in the endgame are very important
+    trace.mobility[WHITE_ROOK][!is_white] += mobility;
 
     // std::cout << "ROOK MOBILITY: " << mobility << std::endl;
 }
@@ -759,13 +807,14 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
         }
     }
 
-    double distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_QUEEN] * distance_to_opp_king);
-    scores.end -= static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_QUEEN] * distance_to_opp_king);
+    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
+    scores.mid += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_QUEEN] * distance_to_opp_king);
+    scores.end += static_cast<SQUARE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_QUEEN] * distance_to_opp_king);
+    trace.opp_king_tropism[WHITE_QUEEN][!is_white] += distance_to_opp_king;
 
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_QUEEN];  // Already gets open + semi-open file bonuses
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_QUEEN];  // Active queen in the endgame is pretty important
-
+    trace.mobility[WHITE_QUEEN][!is_white] += mobility;
     // std::cout << "QUEEN MOBILITY: " << mobility << std::endl;
 }
 
@@ -779,21 +828,25 @@ void evaluate_king(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         trace.king_pst[i][WHITE_COLOR]++;
 
         if (col < 4) {  // Queen side
-            scores.mid += evaluate_king_pawn(position, 1, true, trace);
-            scores.mid += evaluate_king_pawn(position, 2, true, trace);
-            scores.mid += evaluate_king_pawn(position, 3, true, trace);
+            evaluate_king_pawn(position, scores, 1, true, trace);
+            evaluate_king_pawn(position, scores, 2, true, trace);
+            evaluate_king_pawn(position, scores, 3, true, trace);
         }
         else if (col > 5) {
-            scores.mid += evaluate_king_pawn(position, 8, true, trace);
-            scores.mid += evaluate_king_pawn(position, 7, true, trace);
-            scores.mid += evaluate_king_pawn(position, 6, true, trace);
+            evaluate_king_pawn(position, scores, 8, true, trace);
+            evaluate_king_pawn(position, scores, 7, true, trace);
+            evaluate_king_pawn(position, scores, 6, true, trace);
         }
         else {
             for (SQUARE_TYPE pawn_file = col - 1; pawn_file < col + 2; pawn_file++) {
                 if (position.pawn_rank[0][pawn_file] == 9) {
-                    scores.mid -= 6;
+                    scores.mid += KING_SEMI_OPEN_FILE_PENALTY_MID;
+                    scores.end += KING_SEMI_OPEN_FILE_PENALTY_END;
+                    trace.king_semi_open[WHITE_COLOR]++;
                     if (position.pawn_rank[1][pawn_file] == 0) {
-                        scores.mid -= 13;
+                        scores.mid += KING_OPEN_FILE_PENALTY_MID;
+                        scores.end += KING_OPEN_FILE_PENALTY_END;
+                        trace.king_open[WHITE_COLOR]++;
                     }
                 }
             }
@@ -805,21 +858,25 @@ void evaluate_king(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         trace.king_pst[i ^ 56][BLACK_COLOR]++;
 
         if (col < 4) {  // Queen side
-            scores.mid += evaluate_king_pawn(position, 1, false, trace); // A file pawn
-            scores.mid += evaluate_king_pawn(position, 2, false, trace);
-            scores.mid += evaluate_king_pawn(position, 3, false, trace); // C file pawn
+            evaluate_king_pawn(position, scores, 1, false, trace); // A file pawn
+            evaluate_king_pawn(position, scores, 2, false, trace);
+            evaluate_king_pawn(position, scores, 3, false, trace); // C file pawn
         }
         else if (col > 5) {
-            scores.mid += evaluate_king_pawn(position, 8, false, trace); // H file pawn
-            scores.mid += evaluate_king_pawn(position, 7, false, trace);
-            scores.mid += evaluate_king_pawn(position, 6, false, trace); // F file pawn
+            evaluate_king_pawn(position, scores, 8, false, trace); // H file pawn
+            evaluate_king_pawn(position, scores, 7, false, trace);
+            evaluate_king_pawn(position, scores, 6, false, trace); // F file pawn
         }
         else {
             for (SQUARE_TYPE pawn_file = col - 1; pawn_file < col + 2; pawn_file++) {
                 if (position.pawn_rank[1][pawn_file] == 0) {
-                    scores.mid -= 6;
+                    scores.mid += KING_SEMI_OPEN_FILE_PENALTY_MID;
+                    scores.end += KING_SEMI_OPEN_FILE_PENALTY_END;
+                    trace.king_semi_open[BLACK_COLOR]++;
                     if (position.pawn_rank[0][pawn_file] == 9) {
-                        scores.mid -= 13;
+                        scores.mid += KING_OPEN_FILE_PENALTY_MID;
+                        scores.end += KING_OPEN_FILE_PENALTY_END;
+                        trace.king_open[BLACK_COLOR]++;
                     }
                 }
             }
@@ -992,6 +1049,15 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
     black_scores.mid += black_material.mid;
     black_scores.end += black_material.end;
 
+    if (position.side == WHITE_COLOR) {
+        white_scores.mid += TEMPO_BONUS_MID;
+        white_scores.end += TEMPO_BONUS_END;
+        trace.tempo_bonus[WHITE_COLOR]++;
+    } else {
+        black_scores.mid += TEMPO_BONUS_MID;
+        black_scores.end += TEMPO_BONUS_END;
+        trace.tempo_bonus[BLACK_COLOR]++;
+    }
     double drawishness = evaluate_drawishness(white_piece_amounts, black_piece_amounts,
                                               white_material.mid, black_material.mid,
                                               bishop_colors[0] != bishop_colors[1]);
@@ -1008,81 +1074,113 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
 
     // std::cout << white_score << " " << black_score << std::endl;
 
-    return (white_score - black_score) + TEMPO_BONUS;
+    return (white_score - black_score);
 }
 
 
-static void print_parameter(std::stringstream& ss, const tune_t parameter)
+static void print_parameter(std::stringstream& ss, const tune_t parameter, bool decimal)
 {
-    const auto param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
-    auto param_size = std::to_string(param).size();
-    for (int i = 0; i < 4 - param_size; i++) {
-        ss << " ";
+    if (decimal) {
+        const auto test_param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
+        auto param_size = std::to_string(test_param).size();
+        for (int i = 0; i < 7 - param_size; i++) {
+            ss << " ";
+        }
+        ss << std::setprecision(3) << parameter;
+    } else {
+        const auto param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
+        auto param_size = std::to_string(param).size();
+        for (int i = 0; i < 4 - param_size; i++) {
+            ss << " ";
+        }
+        ss << param;
     }
-    ss << param;
 }
 
-static void print_single(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name)
+static void print_single(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, bool decimal)
 {
-    ss << "constexpr SCORE_TYPE " << name << "_MID = ";
-    print_parameter(ss, parameters[index][0]);
+    string type = decimal ? " double " : " SCORE_TYPE ";
+    ss << "constexpr" << type << name << "_MID = ";
+    print_parameter(ss, parameters[index][0], decimal);
     ss << ";" << endl;
 
-    ss << "constexpr SCORE_TYPE " << name << "_END = ";
-    print_parameter(ss, parameters[index][1]);
+    ss << "constexpr" << type << name << "_END = ";
+    print_parameter(ss, parameters[index][1], decimal);
     ss << ";\n" << endl;
 
     index++;
 }
 
-static void print_array(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count)
+static void print_array(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count, bool decimal)
 {
-    ss << "constexpr SCORE_TYPE " << name << "_MID[" << std::to_string(count) << "] = {";
-    string out = "constexpr SCORE_TYPE " + name + "_MID[" + std::to_string(count) + "] = {";
-    auto indent = out.size();
+    for (int c = 0; c < 2; c++) {
 
-    for (auto i = 0; i < count; i++)
-    {
-        print_parameter(ss, parameters[index][0]);
-        index++;
-
-        if (i != count - 1)
-        {
-            ss << ",";
+        string type = decimal ? " double " : " SCORE_TYPE ";
+        if (c == 0) {
+            ss << "constexpr" << type << name << "_MID[" << std::to_string(count) << "] = {";
+        } else {
+            ss << "constexpr" << type << name << "_END[" << std::to_string(count) << "] = {";
         }
 
-        if (count == 64 && (i + 1) % 8 == 0) {
-            ss << "\n";
-            for (auto j = 0; j < indent; j++) {
-                ss << " ";
+        if (count == 64) ss << "\n\t";
+
+        for (auto i = 0; i < count; i++)
+        {
+            print_parameter(ss, parameters[index][c], decimal);
+            index++;
+
+            if (i != count - 1)
+            {
+                ss << ",";
+            }
+
+            if (count == 64 && (i + 1) % 8 == 0 && i != count - 1) {
+                ss << "\n\t";
             }
         }
+        if (count == 64) ss << "\n";
+        ss << "}; \n" << endl;
 
+        if (c == 0) index -= count;
     }
-    ss << "}; \n" << endl;
 
-    index -= count;
+}
 
-    ss << "constexpr SCORE_TYPE " << name << "_END[" << std::to_string(count) << "] = {";
-    for (auto i = 0; i < count; i++)
-    {
-        print_parameter(ss, parameters[index][1]);
-        index++;
 
-        if (i != count - 1)
+static void print_array_2d(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count1, int count2, bool decimal)
+{
+    for (int c = 0; c < 2; c++) {
+        string type = decimal ? " double " : " SCORE_TYPE ";
+        if (c == 0) {
+            ss << "constexpr" << type << name << "_MID[" << std::to_string(count1) << "][" << std::to_string(count2) << "] = {\n";
+        } else {
+            ss << "constexpr" << type << name << "_END[" << std::to_string(count1) << "][" << std::to_string(count2) << "] = {\n";
+        }
+
+        for (auto i = 0; i < count1; i++)
         {
-            ss << ",";
-        }
+            ss << "\t{";
+            for (auto j = 0; j < count2; j++) {
+                print_parameter(ss, parameters[index][c], decimal);
+                index++;
 
-        if (count == 64 && (i + 1) % 8 == 0) {
-            ss << "\n";
-            for (auto j = 0; j < indent; j++) {
-                ss << " ";
+                if (j != count2 - 1)
+                {
+                    ss << ",";
+                }
             }
-        }
 
+            ss << "}";
+            if (i != count1 - 1)
+            {
+                ss << ",";
+            }
+            ss << "\n";
+        }
+        ss << "}; \n" << endl;
+
+        if (c == 0) index -= count1 * count2;
     }
-    ss << "}; \n" << endl;
 }
 
 
@@ -1117,7 +1215,20 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_single(coefficients, trace.queen_semi_open);
     get_coefficient_single(coefficients, trace.queen_open);
 
+    get_coefficient_single(coefficients, trace.king_semi_open);
+    get_coefficient_single(coefficients, trace.king_open);
+
     get_coefficient_single(coefficients, trace.bishop_bonus);
+
+    get_coefficient_single(coefficients, trace.tempo_bonus);
+
+    get_coefficient_array(coefficients, trace.mobility, 6);
+
+    get_coefficient_array(coefficients, trace.own_king_tropism, 6);
+    get_coefficient_array(coefficients, trace.opp_king_tropism, 6);
+
+    get_coefficient_array_2d(coefficients, trace.own_king_pawn_shield, 3, 8);
+    get_coefficient_array_2d(coefficients, trace.opp_king_pawn_shield, 3, 8);
 
     return coefficients;
 }
@@ -1153,7 +1264,20 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single_double(parameters, QUEEN_SEMI_OPEN_FILE_BONUS_MID, QUEEN_SEMI_OPEN_FILE_BONUS_END);
     get_initial_parameter_single_double(parameters, QUEEN_OPEN_FILE_BONUS_MID, QUEEN_OPEN_FILE_BONUS_END);
 
+    get_initial_parameter_single_double(parameters, KING_SEMI_OPEN_FILE_PENALTY_MID, KING_SEMI_OPEN_FILE_PENALTY_END);
+    get_initial_parameter_single_double(parameters, KING_OPEN_FILE_PENALTY_MID, KING_OPEN_FILE_PENALTY_END);
+
     get_initial_parameter_single_double(parameters, BISHOP_PAIR_BONUS_MID, BISHOP_PAIR_BONUS_END);
+
+    get_initial_parameter_single_double(parameters, TEMPO_BONUS_MID, TEMPO_BONUS_END);
+
+    get_initial_parameter_array_double(parameters, MOBILITY_COEFFICIENTS_MID, MOBILITY_COEFFICIENTS_END, 6);
+
+    get_initial_parameter_array_double(parameters, OWN_KING_DISTANCE_COEFFICIENTS_MID, OWN_KING_DISTANCE_COEFFICIENTS_END, 6);
+    get_initial_parameter_array_double(parameters, OPP_KING_DISTANCE_COEFFICIENTS_MID, OPP_KING_DISTANCE_COEFFICIENTS_END, 6);
+
+    get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OWN_PENALTIES_MID, KING_PAWN_SHIELD_OWN_PENALTIES_END, 3, 8);
+    get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OPP_PENALTIES_MID, KING_PAWN_SHIELD_OPP_PENALTIES_END, 3, 8);
 
     return parameters;
 }
@@ -1180,35 +1304,49 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     int index = 0;
     stringstream ss;
 
-    print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
+    print_array(ss, parameters_copy, index, "PIECE_VALUES", 6, false);
 
-    print_array(ss, parameters_copy, index, "PAWN_PST", 64);
-    print_array(ss, parameters_copy, index, "KNIGHT_PST", 64);
-    print_array(ss, parameters_copy, index, "BISHOP_PST", 64);
-    print_array(ss, parameters_copy, index, "ROOK_PST", 64);
-    print_array(ss, parameters_copy, index, "QUEEN_PST", 64);
-    print_array(ss, parameters_copy, index, "KING_PST", 64);
+    print_array(ss, parameters_copy, index, "PAWN_PST", 64, false);
+    print_array(ss, parameters_copy, index, "KNIGHT_PST", 64, false);
+    print_array(ss, parameters_copy, index, "BISHOP_PST", 64, false);
+    print_array(ss, parameters_copy, index, "ROOK_PST", 64, false);
+    print_array(ss, parameters_copy, index, "QUEEN_PST", 64, false);
+    print_array(ss, parameters_copy, index, "KING_PST", 64, false);
 
-    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8);
+    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8, false);
 
-    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY");
-    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY");
+    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY", false);
+    print_single(ss, parameters_copy, index, "ISOLATED_PAWN_SEMI_OPEN_FILE_PENALTY", false);
 
-    print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
+    print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY", false);
 
-    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
-    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY");
+    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY", false);
+    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY", false);
 
-    print_array(ss, parameters_copy, index, "BLOCKER_VALUES", 6);
-    print_array(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6);
+    print_array(ss, parameters_copy, index, "BLOCKER_VALUES", 6, false);
+    print_array(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6, false);
 
-    print_single(ss, parameters_copy, index, "ROOK_SEMI_OPEN_FILE_BONUS");
-    print_single(ss, parameters_copy, index, "ROOK_OPEN_FILE_BONUS");
+    print_single(ss, parameters_copy, index, "ROOK_SEMI_OPEN_FILE_BONUS", false);
+    print_single(ss, parameters_copy, index, "ROOK_OPEN_FILE_BONUS", false);
 
-    print_single(ss, parameters_copy, index, "QUEEN_SEMI_OPEN_FILE_BONUS");
-    print_single(ss, parameters_copy, index, "QUEEN_OPEN_FILE_BONUS");
+    print_single(ss, parameters_copy, index, "QUEEN_SEMI_OPEN_FILE_BONUS", false);
+    print_single(ss, parameters_copy, index, "QUEEN_OPEN_FILE_BONUS", false);
 
-    print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
+    print_single(ss, parameters_copy, index, "KING_SEMI_OPEN_FILE_PENALTY", false);
+    print_single(ss, parameters_copy, index, "KING_OPEN_FILE_PENALTY", false);
+
+    print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS", false);
+
+    print_single(ss, parameters_copy, index, "TEMPO_BONUS", false);
+
+    print_array(ss, parameters_copy, index, "MOBILITY_COEFFICIENTS", 6, true);
+
+    print_array(ss, parameters_copy, index, "OWN_KING_DISTANCE_COEFFICIENTS", 6, true);
+    print_array(ss, parameters_copy, index, "OPP_KING_DISTANCE_COEFFICIENTS", 6, true);
+
+    print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OWN_PENALTIES", 3, 8, false);
+    print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OPP_PENALTIES", 3, 8, false);
+
 
     std::cout << ss.str() << "\n";
 }
