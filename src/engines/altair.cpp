@@ -335,6 +335,13 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 trace.blockers_two_squares[position.board[pos - 20] - 6][WHITE_COLOR]++;
             }
         }
+
+        // Pawn Phalanx
+        if (position.board[pos - 1] == WHITE_PAWN) {
+            scores.mid += PHALANX_PAWN_BONUS_MID[row - 1];
+            scores.end += PHALANX_PAWN_BONUS_END[row - 1];
+            trace.pawn_phalanx[row - 1][WHITE_COLOR]++;
+        }
     }
 
     else {
@@ -415,6 +422,13 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos + 20]];
                 trace.blockers_two_squares[position.board[pos + 20]][BLACK_COLOR]++;
             }
+        }
+
+        // Pawn Phalanx
+        if (position.board[pos - 1] == BLACK_PAWN) {
+            scores.mid += PHALANX_PAWN_BONUS_MID[8 - row];
+            scores.end += PHALANX_PAWN_BONUS_END[8 - row];
+            trace.pawn_phalanx[8 - row][BLACK_COLOR]++;
         }
     }
 }
@@ -1215,6 +1229,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_single(coefficients, trace.backward_pawns);
     get_coefficient_single(coefficients, trace.backward_pawns_semi_open_file);
 
+    get_coefficient_array(coefficients, trace.pawn_phalanx, 8);
+
     get_coefficient_array(coefficients, trace.blockers, 6);
     get_coefficient_array(coefficients, trace.blockers_two_squares, 6);
 
@@ -1263,6 +1279,8 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_single_double(parameters, BACKWARDS_PAWN_PENALTY_MID, BACKWARDS_PAWN_PENALTY_END);
     get_initial_parameter_single_double(parameters, BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_MID, BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END);
+
+    get_initial_parameter_array_double(parameters, PHALANX_PAWN_BONUS_MID, PHALANX_PAWN_BONUS_END, 8);
 
     get_initial_parameter_array_double(parameters, BLOCKER_VALUES_MID, BLOCKER_VALUES_END, 6);
     get_initial_parameter_array_double(parameters, BLOCKER_TWO_SQUARE_VALUES_MID, BLOCKER_TWO_SQUARE_VALUES_END, 6);
@@ -1331,6 +1349,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY", false);
     print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY", false);
+
+    print_array(ss, parameters_copy, index, "PHALANX_PAWN_BONUS", 8, false);
 
     print_array(ss, parameters_copy, index, "BLOCKER_VALUES", 6, false);
     print_array(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6, false);

@@ -326,6 +326,9 @@ constexpr SCORE_TYPE KING_PST_END[64] = {
         -20, -20, -20, -20, -20, -20, -20, -20
 };
 
+constexpr SCORE_TYPE PHALANX_PAWN_BONUS_MID[8] = {0, 10, 20, 35, 50, 75, 100, 0};
+constexpr SCORE_TYPE PHALANX_PAWN_BONUS_END[8] = {0, 10, 20, 35, 50, 75, 100, 0};
+
 struct Trace {
     int score={};
 
@@ -344,6 +347,7 @@ struct Trace {
     short doubled_pawns[2]{};
     short backward_pawns[2]{};
     short backward_pawns_semi_open_file[2]{};
+    short pawn_phalanx[8][2]{};
 
     short blockers[6][2]{};
     short blockers_two_squares[6][2]{};
