@@ -344,16 +344,16 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
             // Blocker right in front of pawn
             if (WHITE_KING < position.board[pos - 10] && position.board[pos - 10] < EMPTY) {
-                scores.mid += BLOCKER_VALUES_MID[position.board[pos - 10] - 6];
-                scores.end += BLOCKER_VALUES_END[position.board[pos - 10] - 6];
-                trace.blockers[position.board[pos - 10] - 6][WHITE_COLOR]++;
+                scores.mid += BLOCKER_VALUES_MID[position.board[pos - 10] - 6][row - 1];
+                scores.end += BLOCKER_VALUES_END[position.board[pos - 10] - 6][row - 1];
+                trace.blockers[position.board[pos - 10] - 6][row - 1][WHITE_COLOR]++;
             }
 
             // Blocker two squares in front of pawn
             if (row < 7 && WHITE_KING < position.board[pos - 20] && position.board[pos - 20] < EMPTY) {
-                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos - 20] - 6];
-                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos - 20] - 6];
-                trace.blockers_two_squares[position.board[pos - 20] - 6][WHITE_COLOR]++;
+                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos - 20] - 6][row - 1];
+                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos - 20] - 6][row - 1];
+                trace.blockers_two_squares[position.board[pos - 20] - 6][row - 1][WHITE_COLOR]++;
             }
         }
 
@@ -453,16 +453,16 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
             // Blocker right in front of pawn
             if (position.board[pos + 10] < BLACK_PAWN) {
-                scores.mid += BLOCKER_VALUES_MID[position.board[pos + 10]];
-                scores.end += BLOCKER_VALUES_END[position.board[pos + 10]];
-                trace.blockers[position.board[pos + 10]][BLACK_COLOR]++;
+                scores.mid += BLOCKER_VALUES_MID[position.board[pos + 10]][8 - row];
+                scores.end += BLOCKER_VALUES_END[position.board[pos + 10]][8 - row];
+                trace.blockers[position.board[pos + 10]][8 - row][BLACK_COLOR]++;
             }
 
             // Blocker two squares in front of pawn
             if (row > 2 && position.board[pos + 20] < BLACK_PAWN) {
-                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos + 20]];
-                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos + 20]];
-                trace.blockers_two_squares[position.board[pos + 20]][BLACK_COLOR]++;
+                scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos + 20]][8 - row];
+                scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos + 20]][8 - row];
+                trace.blockers_two_squares[position.board[pos + 20]][8 - row][BLACK_COLOR]++;
             }
         }
 
@@ -1382,8 +1382,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.piece_support, 6, 6);
     get_coefficient_array_2d(coefficients, trace.piece_threat, 6, 6);
 
-    get_coefficient_array(coefficients, trace.blockers, 6);
-    get_coefficient_array(coefficients, trace.blockers_two_squares, 6);
+    get_coefficient_array_2d(coefficients, trace.blockers, 6, 8);
+    get_coefficient_array_2d(coefficients, trace.blockers_two_squares, 6, 8);
 
     get_coefficient_single(coefficients, trace.rook_semi_open);
     get_coefficient_single(coefficients, trace.rook_open);
@@ -1438,8 +1438,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d_double(parameters, PIECE_SUPPORT_MID, PIECE_SUPPORT_END, 6, 6);
     get_initial_parameter_array_2d_double(parameters, PIECE_THREAT_MID, PIECE_THREAT_END, 6, 6);
 
-    get_initial_parameter_array_double(parameters, BLOCKER_VALUES_MID, BLOCKER_VALUES_END, 6);
-    get_initial_parameter_array_double(parameters, BLOCKER_TWO_SQUARE_VALUES_MID, BLOCKER_TWO_SQUARE_VALUES_END, 6);
+    get_initial_parameter_array_2d_double(parameters, BLOCKER_VALUES_MID, BLOCKER_VALUES_END, 6, 8);
+    get_initial_parameter_array_2d_double(parameters, BLOCKER_TWO_SQUARE_VALUES_MID, BLOCKER_TWO_SQUARE_VALUES_END, 6, 8);
 
     get_initial_parameter_single_double(parameters, ROOK_SEMI_OPEN_FILE_BONUS_MID, ROOK_SEMI_OPEN_FILE_BONUS_END);
     get_initial_parameter_single_double(parameters, ROOK_OPEN_FILE_BONUS_MID, ROOK_OPEN_FILE_BONUS_END);
@@ -1513,8 +1513,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PIECE_SUPPORT", 6, 6, false);
     print_array_2d(ss, parameters_copy, index, "PIECE_THREAT", 6, 6, false);
 
-    print_array(ss, parameters_copy, index, "BLOCKER_VALUES", 6, false);
-    print_array(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6, false);
+    print_array_2d(ss, parameters_copy, index, "BLOCKER_VALUES", 6, 8, false);
+    print_array_2d(ss, parameters_copy, index, "BLOCKER_TWO_SQUARE_VALUES", 6, 8, false);
 
     print_single(ss, parameters_copy, index, "ROOK_SEMI_OPEN_FILE_BONUS", false);
     print_single(ss, parameters_copy, index, "ROOK_OPEN_FILE_BONUS", false);
