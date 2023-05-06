@@ -479,6 +479,7 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SCORE_TYPE mobility = 0;
+    int king_ring_attacks[2]{};
 
     if (is_white) {
         scores.mid += KNIGHT_PST_MID[i];
@@ -491,6 +492,11 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
             PIECE_TYPE occupied = position.board[new_pos];
 
             if (occupied == PADDING) continue;
+
+            king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                         king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
+            king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                         king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
@@ -527,6 +533,11 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
             PIECE_TYPE occupied = position.board[new_pos];
 
             if (occupied == PADDING) continue;
+
+            king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                         king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+            king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                         king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
 
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
@@ -571,6 +582,14 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_KNIGHT];
     trace.mobility[WHITE_KNIGHT][!is_white] += mobility;
 
+    scores.mid += king_ring_attacks[0] * KING_RING_ATTACKS_MID[0][WHITE_KNIGHT];
+    scores.end += king_ring_attacks[0] * KING_RING_ATTACKS_END[0][WHITE_KNIGHT];
+    trace.king_ring_attacks[0][WHITE_KNIGHT][!is_white] += king_ring_attacks[0];
+
+    scores.mid += king_ring_attacks[1] * KING_RING_ATTACKS_MID[1][WHITE_KNIGHT];
+    scores.end += king_ring_attacks[1] * KING_RING_ATTACKS_END[1][WHITE_KNIGHT];
+    trace.king_ring_attacks[1][WHITE_KNIGHT][!is_white] += king_ring_attacks[1];
+
     // std::cout << "KNIGHT MOBILITY: " << mobility << std::endl;
 }
 
@@ -578,6 +597,7 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
 void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SCORE_TYPE mobility = 0;
+    int king_ring_attacks[2]{};
 
     if (is_white) {
         scores.mid += BISHOP_PST_MID[i];
@@ -594,6 +614,11 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 PIECE_TYPE occupied = position.board[new_pos];
 
                 if (occupied == PADDING) break;
+
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -636,6 +661,11 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
 
                 if (occupied == PADDING) break;
 
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -670,6 +700,14 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_BISHOP];
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_BISHOP];
     trace.mobility[WHITE_BISHOP][!is_white] += mobility;
+
+    scores.mid += king_ring_attacks[0] * KING_RING_ATTACKS_MID[0][WHITE_BISHOP];
+    scores.end += king_ring_attacks[0] * KING_RING_ATTACKS_END[0][WHITE_BISHOP];
+    trace.king_ring_attacks[0][WHITE_BISHOP][!is_white] += king_ring_attacks[0];
+
+    scores.mid += king_ring_attacks[1] * KING_RING_ATTACKS_MID[1][WHITE_BISHOP];
+    scores.end += king_ring_attacks[1] * KING_RING_ATTACKS_END[1][WHITE_BISHOP];
+    trace.king_ring_attacks[1][WHITE_BISHOP][!is_white] += king_ring_attacks[1];
     // std::cout << "BISHOP MOBILITY: " << mobility << std::endl;
 }
 
@@ -678,6 +716,7 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE col = i % 8 + 1;
     SCORE_TYPE mobility = 0;
+    int king_ring_attacks[2]{};
 
     if (is_white) {
         scores.mid += ROOK_PST_MID[i];
@@ -707,6 +746,11 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 PIECE_TYPE occupied = position.board[new_pos];
 
                 if (occupied == PADDING) break;
+
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -759,6 +803,11 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
                 if (occupied == PADDING) break;
 
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -791,6 +840,14 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_ROOK];  // Active rooks in the endgame are very important
     trace.mobility[WHITE_ROOK][!is_white] += mobility;
 
+    scores.mid += king_ring_attacks[0] * KING_RING_ATTACKS_MID[0][WHITE_ROOK];
+    scores.end += king_ring_attacks[0] * KING_RING_ATTACKS_END[0][WHITE_ROOK];
+    trace.king_ring_attacks[0][WHITE_ROOK][!is_white] += king_ring_attacks[0];
+
+    scores.mid += king_ring_attacks[1] * KING_RING_ATTACKS_MID[1][WHITE_ROOK];
+    scores.end += king_ring_attacks[1] * KING_RING_ATTACKS_END[1][WHITE_ROOK];
+    trace.king_ring_attacks[1][WHITE_ROOK][!is_white] += king_ring_attacks[1];
+
     // std::cout << "ROOK MOBILITY: " << mobility << std::endl;
 }
 
@@ -799,6 +856,7 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE col = i % 8 + 1;
     SCORE_TYPE mobility = 0;
+    int king_ring_attacks[2]{};
 
     if (is_white) {
         scores.mid += QUEEN_PST_MID[i];
@@ -827,6 +885,11 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                 PIECE_TYPE occupied = position.board[new_pos];
 
                 if (occupied == PADDING) break;
+
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -878,6 +941,11 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
 
                 if (occupied == PADDING) break;
 
+                king_ring_attacks[0] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[0][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+                king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
+                                             king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -909,6 +977,15 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
     scores.mid += mobility * MOBILITY_COEFFICIENTS_MID[WHITE_QUEEN];  // Already gets open + semi-open file bonuses
     scores.end += mobility * MOBILITY_COEFFICIENTS_END[WHITE_QUEEN];  // Active queen in the endgame is pretty important
     trace.mobility[WHITE_QUEEN][!is_white] += mobility;
+
+    scores.mid += king_ring_attacks[0] * KING_RING_ATTACKS_MID[0][WHITE_QUEEN];
+    scores.end += king_ring_attacks[0] * KING_RING_ATTACKS_END[0][WHITE_QUEEN];
+    trace.king_ring_attacks[0][WHITE_QUEEN][!is_white] += king_ring_attacks[0];
+
+    scores.mid += king_ring_attacks[1] * KING_RING_ATTACKS_MID[1][WHITE_QUEEN];
+    scores.end += king_ring_attacks[1] * KING_RING_ATTACKS_END[1][WHITE_QUEEN];
+    trace.king_ring_attacks[1][WHITE_QUEEN][!is_white] += king_ring_attacks[1];
+
     // std::cout << "QUEEN MOBILITY: " << mobility << std::endl;
 }
 
@@ -1329,6 +1406,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.own_king_pawn_shield, 3, 8);
     get_coefficient_array_2d(coefficients, trace.opp_king_pawn_shield, 3, 8);
 
+    get_coefficient_array_2d(coefficients, trace.king_ring_attacks, 2, 6);
+
     return coefficients;
 }
 
@@ -1382,6 +1461,8 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OWN_PENALTIES_MID, KING_PAWN_SHIELD_OWN_PENALTIES_END, 3, 8);
     get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OPP_PENALTIES_MID, KING_PAWN_SHIELD_OPP_PENALTIES_END, 3, 8);
+
+    get_initial_parameter_array_2d_double(parameters, KING_RING_ATTACKS_MID, KING_RING_ATTACKS_END, 2, 6);
 
     return parameters;
 }
@@ -1455,6 +1536,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OWN_PENALTIES", 3, 8, false);
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OPP_PENALTIES", 3, 8, false);
+
+    print_array_2d(ss, parameters_copy, index, "KING_RING_ATTACKS", 2, 6, false);
 
 
     std::cout << ss.str() << "\n";
