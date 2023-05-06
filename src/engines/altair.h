@@ -180,9 +180,6 @@ constexpr SCORE_TYPE BLOCKER_VALUES_END[6] = {0, -37, -21, -26, -11, -28};
 constexpr SCORE_TYPE BLOCKER_TWO_SQUARE_VALUES_MID[6] = {0, -15, -7, -11,  -4,  -1};
 constexpr SCORE_TYPE BLOCKER_TWO_SQUARE_VALUES_END[6] = {0, -20, -11, -13, -6, -14};
 
-constexpr SCORE_TYPE PIECE_ATTACK_MOBILITY[6] = {6, 8, 8, 10, 14, 35};
-constexpr SCORE_TYPE PIECE_ATTACK_MOBILITY_PENALTY[6] = {0, 2, 1, 3, 4, 0};
-
 constexpr double MOBILITY_COEFFICIENTS_MID[6] = {0.0, 1.6, 1.2, 0.55, 0.36, 0.0};
 constexpr double MOBILITY_COEFFICIENTS_END[6] = {0.0, 1.5, 1.1, 1.0, 1.0, 0.0};
 
@@ -329,6 +326,44 @@ constexpr SCORE_TYPE KING_PST_END[64] = {
 constexpr SCORE_TYPE PHALANX_PAWN_BONUS_MID[8] = {0, 10, 20, 35, 50, 75, 100, 0};
 constexpr SCORE_TYPE PHALANX_PAWN_BONUS_END[8] = {0, 10, 20, 35, 50, 75, 100, 0};
 
+constexpr SCORE_TYPE PIECE_SUPPORT_MID[6][6] = {{10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {0, 0, 0, 0, 0, 0}};
+
+constexpr SCORE_TYPE PIECE_SUPPORT_END[6][6] = {{10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {10, 20, 20, 10, 10, 0},
+                                                {0, 0, 0, 0, 0, 0}};
+
+constexpr SCORE_TYPE PIECE_THREAT_MID[6][6] = {{10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {0, 0, 0, 0, 0, 0}};
+
+constexpr SCORE_TYPE PIECE_THREAT_END[6][6] = {{10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {10, 20, 20, 10, 10, 0},
+                                               {0, 0, 0, 0, 0, 0}};
+
+constexpr SCORE_TYPE KING_RING_ATTACKS_MID[2][6] = {
+        {0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0},
+};
+
+constexpr SCORE_TYPE KING_RING_ATTACKS_END[2][6] = {
+        {0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0},
+};
+
 struct Trace {
     int score={};
 
@@ -348,6 +383,9 @@ struct Trace {
     short backward_pawns[2]{};
     short backward_pawns_semi_open_file[2]{};
     short pawn_phalanx[8][2]{};
+
+    short piece_support[6][6][2]{};
+    short piece_threat[6][6][2]{};
 
     short blockers[6][2]{};
     short blockers_two_squares[6][2]{};
@@ -396,6 +434,35 @@ namespace Altair {
         static void print_parameters(const parameters_t& parameters);
     };
 }
+
+
+
+
+template<int n>
+struct KingRing {
+    constexpr KingRing() : masks() {
+        for (int rings = 1; rings <= n; rings++) {
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    masks[rings-1][i * 8 + j] = 0ULL;
+                    for (int y = i - rings; y <= i + rings; y++){
+                        for (int x = j - rings; x <= j + rings; x++) {
+                            if (y < 0 || y >= 8 || x < 0 || x >= 8) continue;
+                            if (y == i - rings || y == i + rings || x == j - rings || x == j + rings) {
+                                masks[rings-1][i * 8 + j] |= 1ULL << (y * 8 + x);
+                            }
+                        }
+                    }
+                    //std::cout << i * 8 + j << " " << masks[rings-1][i * 8 + j] << std::endl;
+                }
+            }
+        }
+    }
+
+    uint64_t masks[n][64]{};
+};
+
+constexpr KingRing king_ring_zone = KingRing<2>();
 
 
 #endif //TUNER_ALTAIR_H
