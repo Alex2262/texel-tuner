@@ -498,6 +498,12 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
             king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                          king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
+            // If there is an enemy pawn controlling this square then we deduct 2.
+            if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                mobility -= 2;
+
+            mobility += 3;
+
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
             if (occupied < BLACK_PAWN) {
@@ -507,10 +513,6 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 continue;
             }
 
-            // If there is an enemy pawn controlling this square then we deduct 2.
-            if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
-                mobility -= 2;
-
             // Attacking pieces means more pressure which is good
             if (occupied < EMPTY) {
                 scores.mid += PIECE_THREAT_MID[WHITE_KNIGHT][occupied - BLACK_PAWN];
@@ -518,8 +520,6 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 trace.piece_threat[WHITE_KNIGHT][occupied - BLACK_PAWN][WHITE_COLOR]++;
                 continue;
             }
-
-            mobility += 3;
         }
     }
     else {
@@ -539,6 +539,12 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
             king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                          king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
 
+            // If there is an enemy pawn controlling this square then we deduct 2.
+            if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                mobility -= 2;
+
+            mobility += 3;
+
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
             if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -548,10 +554,6 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 continue;
             }
 
-            // If there is an enemy pawn controlling this square then we deduct 2.
-            if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
-                mobility -= 2;
-
             // Attacking pieces means more pressure which is good
             if (occupied < BLACK_PAWN) {
                 scores.mid += PIECE_THREAT_MID[WHITE_KNIGHT][occupied];
@@ -559,10 +561,6 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 trace.piece_threat[WHITE_KNIGHT][occupied][BLACK_COLOR]++;
                 continue;
             }
-
-            mobility += 3;
-
-
         }
     }
 
@@ -620,6 +618,12 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -629,10 +633,6 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                     break;
                 }
 
-                // If there is an enemy pawn controlling this square then we deduct 2.
-                if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
-                    mobility -= 2;
-
                 // Attacking pieces means more pressure which is good
                 if (occupied < EMPTY) {
                     scores.mid += PIECE_THREAT_MID[WHITE_BISHOP][occupied - BLACK_PAWN];
@@ -640,8 +640,6 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                     trace.piece_threat[WHITE_BISHOP][occupied - BLACK_PAWN][WHITE_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
@@ -666,6 +664,12 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -675,10 +679,6 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                     break;
                 }
 
-                // If there is an enemy pawn controlling this square then we deduct 2.
-                if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
-                    mobility -= 2;
-
                 // Attacking pieces means more pressure which is good
                 if (occupied < BLACK_PAWN) {
                     scores.mid += PIECE_THREAT_MID[WHITE_BISHOP][occupied];
@@ -686,8 +686,6 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                     trace.piece_threat[WHITE_BISHOP][occupied][BLACK_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
@@ -752,6 +750,12 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -769,8 +773,6 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                     trace.piece_threat[WHITE_ROOK][occupied - BLACK_PAWN][WHITE_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
@@ -808,6 +810,12 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -825,8 +833,6 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                     trace.piece_threat[WHITE_ROOK][occupied][BLACK_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
@@ -891,6 +897,12 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos - 11] == BLACK_PAWN || position.board[new_pos - 9] == BLACK_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -908,8 +920,6 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                     trace.piece_threat[WHITE_QUEEN][occupied - BLACK_PAWN][WHITE_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
@@ -946,6 +956,12 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                 king_ring_attacks[1] += bool((1ULL << MAILBOX_TO_STANDARD[new_pos]) &
                                              king_ring_zone.masks[1][MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]]]);
 
+                // If there is an enemy pawn controlling this square then we deduct 2.
+                if (position.board[new_pos + 11] == WHITE_PAWN || position.board[new_pos + 9] == WHITE_PAWN)
+                    mobility -= 2;
+
+                mobility += 3;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (WHITE_KING < occupied && occupied < EMPTY) {
@@ -963,8 +979,6 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                     trace.piece_threat[WHITE_QUEEN][occupied][BLACK_COLOR]++;
                     break;
                 }
-
-                mobility += 3;
             }
         }
     }
