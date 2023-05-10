@@ -431,43 +431,6 @@ struct Trace {
     short rook_pst[64][2]{};
     short queen_pst[64][2]{};
     short king_pst[64][2]{};
-
-    short passed_pawns[3][8][2]{};
-    short isolated_pawns[2]{};
-    short isolated_pawns_semi_open_file[2]{};
-    short doubled_pawns[2]{};
-    short backward_pawns[2]{};
-    short backward_pawns_semi_open_file[2]{};
-    short pawn_phalanx[8][2]{};
-
-    short piece_support[6][6][2]{};
-    short piece_threat[6][6][2]{};
-
-    short blockers[6][8][2]{};
-    short blockers_two_squares[6][8][2]{};
-
-    short rook_semi_open[2]{};
-    short rook_open[2]{};
-
-    short queen_semi_open[2]{};
-    short queen_open[2]{};
-
-    short king_semi_open[2]{};
-    short king_open[2]{};
-
-    short bishop_bonus[2]{};
-
-    short tempo_bonus[2]{};
-
-    short mobility[6][2]{};
-
-    short own_king_tropism[6][2]{};
-    short opp_king_tropism[6][2]{};
-
-    short own_king_pawn_shield[3][8][2]{};
-    short opp_king_pawn_shield[3][8][2]{};
-
-    short king_ring_attacks[2][6][2]{};
 };
 
 struct Score_Struct {
