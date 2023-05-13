@@ -326,6 +326,24 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 scores.end += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END;
                 trace.backward_pawns_semi_open_file[WHITE_COLOR]++;
             }
+
+            // Outposts
+            auto outpost_pos = static_cast<SQUARE_TYPE>(pos - 10);
+            if (position.board[outpost_pos - 11] == BLACK_PAWN || position.board[outpost_pos - 9] == BLACK_PAWN) {
+                scores.mid += OUTPOST_PENALTY_MID;
+                scores.end += OUTPOST_PENALTY_END;
+                trace.outpost_penalty[WHITE_COLOR]++;
+
+                if (position.board[outpost_pos] == BLACK_KNIGHT) {
+                    scores.mid += OUTPOST_KNIGHT_PENALTY_MID;
+                    scores.end += OUTPOST_KNIGHT_PENALTY_END;
+                    trace.outpost_knight_penalty[WHITE_COLOR]++;
+                } else if (position.board[outpost_pos] == BLACK_BISHOP) {
+                    scores.mid += OUTPOST_BISHOP_PENALTY_MID;
+                    scores.end += OUTPOST_BISHOP_PENALTY_END;
+                    trace.outpost_bishop_penalty[WHITE_COLOR]++;
+                }
+            }
         }
 
         // Passed Pawn Bonus
@@ -434,6 +452,24 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 scores.mid += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_MID;
                 scores.end += BACKWARDS_PAWN_SEMI_OPEN_FILE_PENALTY_END;
                 trace.backward_pawns_semi_open_file[BLACK_COLOR]++;
+            }
+
+            // Outposts
+            auto outpost_pos = static_cast<SQUARE_TYPE>(pos + 10);
+            if (position.board[outpost_pos + 11] == WHITE_PAWN || position.board[outpost_pos + 9] == WHITE_PAWN) {
+                scores.mid += OUTPOST_PENALTY_MID;
+                scores.end += OUTPOST_PENALTY_END;
+                trace.outpost_penalty[BLACK_COLOR]++;
+
+                if (position.board[outpost_pos] == WHITE_KNIGHT) {
+                    scores.mid += OUTPOST_KNIGHT_PENALTY_MID;
+                    scores.end += OUTPOST_KNIGHT_PENALTY_END;
+                    trace.outpost_knight_penalty[BLACK_COLOR]++;
+                } else if (position.board[outpost_pos] == WHITE_BISHOP) {
+                    scores.mid += OUTPOST_BISHOP_PENALTY_MID;
+                    scores.end += OUTPOST_BISHOP_PENALTY_END;
+                    trace.outpost_bishop_penalty[BLACK_COLOR]++;
+                }
             }
         }
 
@@ -1426,6 +1462,10 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array_2d(coefficients, trace.king_ring_attacks, 2, 6);
 
+    get_coefficient_single(coefficients, trace.outpost_penalty);
+    get_coefficient_single(coefficients, trace.outpost_knight_penalty);
+    get_coefficient_single(coefficients, trace.outpost_bishop_penalty);
+
     return coefficients;
 }
 
@@ -1481,6 +1521,10 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OPP_PENALTIES_MID, KING_PAWN_SHIELD_OPP_PENALTIES_END, 3, 8);
 
     get_initial_parameter_array_2d_double(parameters, KING_RING_ATTACKS_MID, KING_RING_ATTACKS_END, 2, 6);
+
+    get_initial_parameter_single_double(parameters, OUTPOST_PENALTY_MID, OUTPOST_PENALTY_END);
+    get_initial_parameter_single_double(parameters, OUTPOST_KNIGHT_PENALTY_MID, OUTPOST_KNIGHT_PENALTY_END);
+    get_initial_parameter_single_double(parameters, OUTPOST_BISHOP_PENALTY_MID, OUTPOST_BISHOP_PENALTY_END);
 
     return parameters;
 }
@@ -1556,6 +1600,10 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OPP_PENALTIES", 3, 8, false);
 
     print_array_2d(ss, parameters_copy, index, "KING_RING_ATTACKS", 2, 6, false);
+
+    print_single(ss, parameters_copy, index, "OUTPOST_PENALTY", false);
+    print_single(ss, parameters_copy, index, "OUTPOST_KNIGHT_PENALTY", false);
+    print_single(ss, parameters_copy, index, "OUTPOST_BISHOP_PENALTY", false);
 
 
     std::cout << ss.str() << "\n";

@@ -420,6 +420,15 @@ constexpr SCORE_TYPE KING_RING_ATTACKS_END[2][6] = {
         {   0,   1,   0,   1,  14,   0}
 };
 
+constexpr SCORE_TYPE OUTPOST_PENALTY_MID = -5;
+constexpr SCORE_TYPE OUTPOST_PENALTY_END = -4;
+
+constexpr SCORE_TYPE OUTPOST_KNIGHT_PENALTY_MID = -8;
+constexpr SCORE_TYPE OUTPOST_KNIGHT_PENALTY_END = -4;
+
+constexpr SCORE_TYPE OUTPOST_BISHOP_PENALTY_MID = -8;
+constexpr SCORE_TYPE OUTPOST_BISHOP_PENALTY_END = -3;
+
 struct Trace {
     int score={};
 
@@ -468,6 +477,10 @@ struct Trace {
     short opp_king_pawn_shield[3][8][2]{};
 
     short king_ring_attacks[2][6][2]{};
+
+    short outpost_penalty[2]{};
+    short outpost_knight_penalty[2]{};
+    short outpost_bishop_penalty[2]{};
 };
 
 struct Score_Struct {
