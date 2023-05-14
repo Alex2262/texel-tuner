@@ -110,7 +110,7 @@ constexpr short BLACK_INCREMENTS[6][8] = {
 constexpr char PIECE_MATCHER[12] = {'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'};
 constexpr int GAME_PHASE_SCORES[6] = {0, 1, 1, 2, 4, 0};
 
-
+constexpr SCORE_TYPE MAX_MINOR_PIECE_VALUE_MID = 409;
 constexpr SCORE_TYPE PIECE_VALUES_MID[6] = { 100, 382, 409, 592,1448,   0};
 
 constexpr SCORE_TYPE PIECE_VALUES_END[6] = { 128, 354, 348, 685,1268,   0};
