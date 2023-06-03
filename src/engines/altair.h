@@ -429,6 +429,9 @@ constexpr SCORE_TYPE OUTPOST_KNIGHT_PENALTY_END = -4;
 constexpr SCORE_TYPE OUTPOST_BISHOP_PENALTY_MID = -8;
 constexpr SCORE_TYPE OUTPOST_BISHOP_PENALTY_END = -3;
 
+constexpr SCORE_TYPE SQUARE_OF_THE_PAWN_MID = 0;
+constexpr SCORE_TYPE SQUARE_OF_THE_PAWN_END = 10;
+
 struct Trace {
     int score={};
 
@@ -481,6 +484,8 @@ struct Trace {
     short outpost_penalty[2]{};
     short outpost_knight_penalty[2]{};
     short outpost_bishop_penalty[2]{};
+
+    short square_of_the_pawn[2]{};
 };
 
 struct Score_Struct {
@@ -493,6 +498,13 @@ inline SCORE_TYPE get_distance(SQUARE_TYPE square_1, SQUARE_TYPE square_2) {
     SQUARE_TYPE row_2 = 8 - square_2 / 8, col_2 = square_2 % 8 + 1;
 
     return abs(row_1 - row_2) + abs(col_1 - col_2);
+}
+
+inline SCORE_TYPE get_chebyshev_distance(SQUARE_TYPE square_1, SQUARE_TYPE square_2) {
+    SQUARE_TYPE row_1 = 8 - square_1 / 8, col_1 = square_1 % 8;
+    SQUARE_TYPE row_2 = 8 - square_2 / 8, col_2 = square_2 % 8;
+
+    return std::max(abs(row_1 - row_2), abs(col_1 - col_2));
 }
 
 namespace Altair {

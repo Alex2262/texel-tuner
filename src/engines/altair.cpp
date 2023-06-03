@@ -373,6 +373,17 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos - 20] - 6][row - 1];
                 trace.blockers_two_squares[position.board[pos - 20] - 6][row - 1][WHITE_COLOR]++;
             }
+
+            SQUARE_TYPE promotion_square = i % 8;
+            int our_distance = get_chebyshev_distance(i, promotion_square);
+            int king_distance = get_chebyshev_distance(MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]], promotion_square);
+
+            if (std::min(our_distance, 5) < king_distance - (position.side == BLACK_COLOR)) {
+                scores.mid += SQUARE_OF_THE_PAWN_MID;
+                scores.end += SQUARE_OF_THE_PAWN_END;
+                trace.square_of_the_pawn[WHITE_COLOR]++;
+            }
+
         }
 
         // Pawn Phalanx
@@ -499,6 +510,16 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                 scores.mid += BLOCKER_TWO_SQUARE_VALUES_MID[position.board[pos + 20]][8 - row];
                 scores.end += BLOCKER_TWO_SQUARE_VALUES_END[position.board[pos + 20]][8 - row];
                 trace.blockers_two_squares[position.board[pos + 20]][8 - row][BLACK_COLOR]++;
+            }
+
+            SQUARE_TYPE promotion_square = (i % 8) ^ 56;
+            int our_distance = get_chebyshev_distance(i, promotion_square);
+            int king_distance = get_chebyshev_distance(MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]], promotion_square);
+
+            if (std::min(our_distance, 5) < king_distance - (position.side == WHITE_COLOR)) {
+                scores.mid += SQUARE_OF_THE_PAWN_MID;
+                scores.end += SQUARE_OF_THE_PAWN_END;
+                trace.square_of_the_pawn[BLACK_COLOR]++;
             }
         }
 
@@ -1473,6 +1494,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_single(coefficients, trace.outpost_knight_penalty);
     get_coefficient_single(coefficients, trace.outpost_bishop_penalty);
 
+    get_coefficient_single(coefficients, trace.square_of_the_pawn);
+
     return coefficients;
 }
 
@@ -1532,6 +1555,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single_double(parameters, OUTPOST_PENALTY_MID, OUTPOST_PENALTY_END);
     get_initial_parameter_single_double(parameters, OUTPOST_KNIGHT_PENALTY_MID, OUTPOST_KNIGHT_PENALTY_END);
     get_initial_parameter_single_double(parameters, OUTPOST_BISHOP_PENALTY_MID, OUTPOST_BISHOP_PENALTY_END);
+
+    get_initial_parameter_single_double(parameters, SQUARE_OF_THE_PAWN_MID, SQUARE_OF_THE_PAWN_END);
 
     return parameters;
 }
@@ -1612,6 +1637,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "OUTPOST_KNIGHT_PENALTY", false);
     print_single(ss, parameters_copy, index, "OUTPOST_BISHOP_PENALTY", false);
 
+    print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN", false);
 
     std::cout << ss.str() << "\n";
 }
