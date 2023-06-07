@@ -255,12 +255,14 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE row = 8 - i / 8, col = i % 8 + 1;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
 
     if (is_white) {
 
-        scores.mid += PAWN_PST_MID[i];
-        scores.end += PAWN_PST_END[i];
-        trace.pawn_pst[i][WHITE_COLOR]++;
+        scores.mid += PAWN_PST_MID[king_bucket][i];
+        scores.end += PAWN_PST_END[king_bucket][i];
+        trace.pawn_pst[king_bucket][i][WHITE_COLOR]++;
 
         // Pawn Protection and Threats
         if (position.board[pos - 9] < BLACK_PAWN) {
@@ -396,9 +398,9 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
     else {
 
-        scores.mid += PAWN_PST_MID[i ^ 56];
-        scores.end += PAWN_PST_END[i ^ 56];
-        trace.pawn_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += PAWN_PST_MID[king_bucket][i ^ 56];
+        scores.end += PAWN_PST_END[king_bucket][i ^ 56];
+        trace.pawn_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         // Pawn Protection and Threats
         if (position.board[pos + 9] < BLACK_PAWN) {
@@ -536,12 +538,14 @@ void evaluate_pawn(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SCORE_TYPE mobility = 0;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
     int king_ring_attacks[2]{};
 
     if (is_white) {
-        scores.mid += KNIGHT_PST_MID[i];
-        scores.end += KNIGHT_PST_END[i];
-        trace.knight_pst[i][WHITE_COLOR]++;
+        scores.mid += KNIGHT_PST_MID[king_bucket][i];
+        scores.end += KNIGHT_PST_END[king_bucket][i];
+        trace.knight_pst[king_bucket][i][WHITE_COLOR]++;
 
         // Calculate Mobility
         for (short increment : WHITE_INCREMENTS[WHITE_KNIGHT]) {
@@ -580,9 +584,9 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
         }
     }
     else {
-        scores.mid += KNIGHT_PST_MID[i ^ 56];
-        scores.end += KNIGHT_PST_END[i ^ 56];
-        trace.knight_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += KNIGHT_PST_MID[king_bucket][i ^ 56];
+        scores.end += KNIGHT_PST_END[king_bucket][i ^ 56];
+        trace.knight_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         // Calculate Mobility
         for (short increment : BLACK_INCREMENTS[WHITE_KNIGHT]) {
@@ -652,12 +656,14 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
 void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SCORE_TYPE mobility = 0;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
     int king_ring_attacks[2]{};
 
     if (is_white) {
-        scores.mid += BISHOP_PST_MID[i];
-        scores.end += BISHOP_PST_END[i];
-        trace.bishop_pst[i][WHITE_COLOR]++;
+        scores.mid += BISHOP_PST_MID[king_bucket][i];
+        scores.end += BISHOP_PST_END[king_bucket][i];
+        trace.bishop_pst[king_bucket][i][WHITE_COLOR]++;
 
         // Calculate Mobility
         for (short increment : WHITE_INCREMENTS[WHITE_BISHOP]) {
@@ -701,9 +707,9 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
         }
     }
     else {
-        scores.mid += BISHOP_PST_MID[i ^ 56];
-        scores.end += BISHOP_PST_END[i ^ 56];
-        trace.bishop_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += BISHOP_PST_MID[king_bucket][i ^ 56];
+        scores.end += BISHOP_PST_END[king_bucket][i ^ 56];
+        trace.bishop_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         // Calculate Mobility
         for (short increment : BLACK_INCREMENTS[WHITE_BISHOP]) {
@@ -771,12 +777,14 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE col = i % 8 + 1;
     SCORE_TYPE mobility = 0;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
     int king_ring_attacks[2]{};
 
     if (is_white) {
-        scores.mid += ROOK_PST_MID[i];
-        scores.end += ROOK_PST_END[i];
-        trace.rook_pst[i][WHITE_COLOR]++;
+        scores.mid += ROOK_PST_MID[king_bucket][i];
+        scores.end += ROOK_PST_END[king_bucket][i];
+        trace.rook_pst[king_bucket][i][WHITE_COLOR]++;
 
         if (position.pawn_rank[0][col] == 9) {
             if (position.pawn_rank[1][col] == 0) {
@@ -834,9 +842,9 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         }
     }
     else {
-        scores.mid += ROOK_PST_MID[i ^ 56];
-        scores.end += ROOK_PST_END[i ^ 56];
-        trace.rook_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += ROOK_PST_MID[king_bucket][i ^ 56];
+        scores.end += ROOK_PST_END[king_bucket][i ^ 56];
+        trace.rook_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         if (position.pawn_rank[1][col] == 0) {
             if (position.pawn_rank[0][col] == 9) {
@@ -919,12 +927,14 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE col = i % 8 + 1;
     SCORE_TYPE mobility = 0;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
     int king_ring_attacks[2]{};
 
     if (is_white) {
-        scores.mid += QUEEN_PST_MID[i];
-        scores.end += QUEEN_PST_END[i];
-        trace.queen_pst[i][WHITE_COLOR]++;
+        scores.mid += QUEEN_PST_MID[king_bucket][i];
+        scores.end += QUEEN_PST_END[king_bucket][i];
+        trace.queen_pst[king_bucket][i][WHITE_COLOR]++;
 
         if (position.pawn_rank[0][col] == 9) {
             if (position.pawn_rank[1][col] == 0) {
@@ -981,9 +991,9 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
         }
     }
     else {
-        scores.mid += QUEEN_PST_MID[i ^ 56];
-        scores.end += QUEEN_PST_END[i ^ 56];
-        trace.queen_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += QUEEN_PST_MID[king_bucket][i ^ 56];
+        scores.end += QUEEN_PST_END[king_bucket][i ^ 56];
+        trace.queen_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         if (position.pawn_rank[1][col] == 0) {
             if (position.pawn_rank[0][col] == 9) {
@@ -1063,11 +1073,13 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
 void evaluate_king(const Position& position, Score_Struct& scores, SQUARE_TYPE pos, bool is_white, Trace& trace) {
     SQUARE_TYPE i = MAILBOX_TO_STANDARD[pos];
     SQUARE_TYPE col = i % 8 + 1;
+    int king_bucket = MAILBOX_TO_STANDARD[position.king_positions[WHITE_COLOR]] % 8 / 4 +
+                      2 * (MAILBOX_TO_STANDARD[position.king_positions[BLACK_COLOR]] % 8 / 4);
 
     if (is_white) {
-        scores.mid += KING_PST_MID[i];
-        scores.end += KING_PST_END[i];
-        trace.king_pst[i][WHITE_COLOR]++;
+        scores.mid += KING_PST_MID[king_bucket][i];
+        scores.end += KING_PST_END[king_bucket][i];
+        trace.king_pst[king_bucket][i][WHITE_COLOR]++;
 
         if (col < 4) {  // Queen side
             evaluate_king_pawn(position, scores, 1, true, trace);
@@ -1095,9 +1107,9 @@ void evaluate_king(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         }
     }
     else {
-        scores.mid += KING_PST_MID[i ^ 56];
-        scores.end += KING_PST_END[i ^ 56];
-        trace.king_pst[i ^ 56][BLACK_COLOR]++;
+        scores.mid += KING_PST_MID[king_bucket][i ^ 56];
+        scores.end += KING_PST_END[king_bucket][i ^ 56];
+        trace.king_pst[king_bucket][i ^ 56][BLACK_COLOR]++;
 
         if (col < 4) {  // Queen side
             evaluate_king_pawn(position, scores, 1, false, trace); // A file pawn
@@ -1332,14 +1344,15 @@ static void print_parameter(std::stringstream& ss, const tune_t parameter, bool 
     if (decimal) {
         const auto test_param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
         auto param_size = std::to_string(test_param).size();
-        for (int i = 0; i < 7 - param_size; i++) {
+        for (int i = 0; i < 9 - param_size; i++) {
             ss << " ";
         }
         ss << std::setprecision(3) << parameter;
     } else {
         const auto param = static_cast<SCORE_TYPE>(parameter + 0.5 - (parameter < 0.0));
         auto param_size = std::to_string(param).size();
-        for (int i = 0; i < 4 - param_size; i++) {
+        //std::cout << param_size << " " << param << std::endl;
+        for (int i = 0; i < 6 - param_size; i++) {
             ss << " ";
         }
         ss << param;
@@ -1410,6 +1423,7 @@ static void print_array_2d(std::stringstream& ss, const parameters_t& parameters
         {
             ss << "\t{";
             for (auto j = 0; j < count2; j++) {
+                //std::cout << i << " " << j << std::endl;
                 print_parameter(ss, parameters[index][c], decimal);
                 index++;
 
@@ -1442,12 +1456,12 @@ static coefficients_t get_coefficients(const Trace& trace)
     coefficients_t coefficients;
     get_coefficient_array(coefficients, trace.material, 6);
 
-    get_coefficient_array(coefficients, trace.pawn_pst, 64);
-    get_coefficient_array(coefficients, trace.knight_pst, 64);
-    get_coefficient_array(coefficients, trace.bishop_pst, 64);
-    get_coefficient_array(coefficients, trace.rook_pst, 64);
-    get_coefficient_array(coefficients, trace.queen_pst, 64);
-    get_coefficient_array(coefficients, trace.king_pst, 64);
+    get_coefficient_array_2d(coefficients, trace.pawn_pst, 4, 64);
+    get_coefficient_array_2d(coefficients, trace.knight_pst, 4, 64);
+    get_coefficient_array_2d(coefficients, trace.bishop_pst, 4, 64);
+    get_coefficient_array_2d(coefficients, trace.rook_pst, 4, 64);
+    get_coefficient_array_2d(coefficients, trace.queen_pst, 4, 64);
+    get_coefficient_array_2d(coefficients, trace.king_pst, 4, 64);
 
     get_coefficient_array_2d(coefficients, trace.passed_pawns, 3, 8);
 
@@ -1504,12 +1518,12 @@ parameters_t AltairEval::get_initial_parameters() {
     parameters_t parameters;
     get_initial_parameter_array_double(parameters, PIECE_VALUES_MID, PIECE_VALUES_END, 6);
 
-    get_initial_parameter_array_double(parameters, PAWN_PST_MID, PAWN_PST_END, 64);
-    get_initial_parameter_array_double(parameters, KNIGHT_PST_MID, KNIGHT_PST_END, 64);
-    get_initial_parameter_array_double(parameters, BISHOP_PST_MID, BISHOP_PST_END, 64);
-    get_initial_parameter_array_double(parameters, ROOK_PST_MID, ROOK_PST_END, 64);
-    get_initial_parameter_array_double(parameters, QUEEN_PST_MID, QUEEN_PST_END, 64);
-    get_initial_parameter_array_double(parameters, KING_PST_MID, KING_PST_END, 64);
+    get_initial_parameter_array_2d_double(parameters, PAWN_PST_MID, PAWN_PST_END, 4, 64);
+    get_initial_parameter_array_2d_double(parameters, KNIGHT_PST_MID, KNIGHT_PST_END, 4, 64);
+    get_initial_parameter_array_2d_double(parameters, BISHOP_PST_MID, BISHOP_PST_END, 4, 64);
+    get_initial_parameter_array_2d_double(parameters, ROOK_PST_MID, ROOK_PST_END, 4, 64);
+    get_initial_parameter_array_2d_double(parameters, QUEEN_PST_MID, QUEEN_PST_END, 4, 64);
+    get_initial_parameter_array_2d_double(parameters, KING_PST_MID, KING_PST_END, 4, 64);
 
     get_initial_parameter_array_2d_double(parameters, PASSED_PAWN_BONUSES_MID, PASSED_PAWN_BONUSES_END, 3, 8);
 
@@ -1582,15 +1596,25 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     int index = 0;
     stringstream ss;
-
+    //std::cout << "WOW" << std::endl;
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6, false);
 
-    print_array(ss, parameters_copy, index, "PAWN_PST", 64, false);
-    print_array(ss, parameters_copy, index, "KNIGHT_PST", 64, false);
-    print_array(ss, parameters_copy, index, "BISHOP_PST", 64, false);
-    print_array(ss, parameters_copy, index, "ROOK_PST", 64, false);
-    print_array(ss, parameters_copy, index, "QUEEN_PST", 64, false);
-    print_array(ss, parameters_copy, index, "KING_PST", 64, false);
+    //std::cout << "WOWIE" << std::endl;
+
+    //std::cout << 0 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "PAWN_PST", 4, 64, false);
+    //std::cout << 1 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "KNIGHT_PST", 4, 64, false);
+    //std::cout << 2 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "BISHOP_PST", 4, 64, false);
+    //std::cout << 3 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "ROOK_PST", 4, 64, false);
+    //std::cout << 4 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "QUEEN_PST", 4, 64, false);
+    //std::cout << 5 << std::endl;
+    print_array_2d(ss, parameters_copy, index, "KING_PST", 4, 64, false);
+
+    //std::cout << "WOWZERS" << std::endl;
 
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 3, 8, false);
 

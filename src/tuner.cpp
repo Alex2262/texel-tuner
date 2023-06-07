@@ -544,6 +544,7 @@ void Tuner::run(const std::vector<DataSource>& sources)
             
         }
 
+        // cout << "Epoch " << epoch << endl;
         if (epoch % 100 == 0)
         {
             const auto elapsed_ms = duration_cast<milliseconds>(high_resolution_clock::now() - loop_start).count();
