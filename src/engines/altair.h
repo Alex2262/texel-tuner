@@ -374,9 +374,17 @@ constexpr SCORE_TYPE BISHOP_PAIR_BONUS_END =   72;
 constexpr SCORE_TYPE TEMPO_BONUS_MID =   26;
 constexpr SCORE_TYPE TEMPO_BONUS_END =   25;
 
-constexpr double MOBILITY_COEFFICIENTS_MID[6] = {      0,      5.83,      3.2,      1.78,      0.672,      0};
+constexpr SCORE_TYPE KNIGHT_MOBILITY_MID[9]{};
+constexpr SCORE_TYPE KNIGHT_MOBILITY_END[9]{};
 
-constexpr double MOBILITY_COEFFICIENTS_END[6] = {      0,      1.54,      2.85,      1.1,      0.229,      0};
+constexpr SCORE_TYPE BISHOP_MOBILITY_MID[14]{};
+constexpr SCORE_TYPE BISHOP_MOBILITY_END[14]{};
+
+constexpr SCORE_TYPE ROOK_MOBILITY_MID[15]{};
+constexpr SCORE_TYPE ROOK_MOBILITY_END[15]{};
+
+constexpr SCORE_TYPE QUEEN_MOBILITY_MID[28]{};
+constexpr SCORE_TYPE QUEEN_MOBILITY_END[28]{};
 
 constexpr double OWN_KING_DISTANCE_COEFFICIENTS_MID[6] = {      0,     -5.8,      0,      0,      0,      0};
 
@@ -471,7 +479,10 @@ struct Trace {
 
     short tempo_bonus[2]{};
 
-    short mobility[6][2]{};
+    short knight_mobility[9][2]{};
+    short bishop_mobility[14][2]{};
+    short rook_mobility[15][2]{};
+    short queen_mobility[28][2]{};
 
     short own_king_tropism[6][2]{};
     short opp_king_tropism[6][2]{};
