@@ -386,6 +386,18 @@ constexpr SCORE_TYPE ROOK_MOBILITY_END[15]{};
 constexpr SCORE_TYPE QUEEN_MOBILITY_MID[28]{};
 constexpr SCORE_TYPE QUEEN_MOBILITY_END[28]{};
 
+constexpr SCORE_TYPE KNIGHT_CONTROL_MID[64]{};
+constexpr SCORE_TYPE KNIGHT_CONTROL_END[64]{};
+
+constexpr SCORE_TYPE BISHOP_CONTROL_MID[64]{};
+constexpr SCORE_TYPE BISHOP_CONTROL_END[64]{};
+
+constexpr SCORE_TYPE ROOK_CONTROL_MID[64]{};
+constexpr SCORE_TYPE ROOK_CONTROL_END[64]{};
+
+constexpr SCORE_TYPE QUEEN_CONTROL_MID[64]{};
+constexpr SCORE_TYPE QUEEN_CONTROL_END[64]{};
+
 constexpr double OWN_KING_DISTANCE_COEFFICIENTS_MID[6] = {      0,     -5.8,      0,      0,      0,      0};
 
 constexpr double OWN_KING_DISTANCE_COEFFICIENTS_END[6] = {      0,      0.827,      0,      0,      0,      0};
@@ -483,6 +495,11 @@ struct Trace {
     short bishop_mobility[14][2]{};
     short rook_mobility[15][2]{};
     short queen_mobility[28][2]{};
+
+    short knight_control[64][2]{};
+    short bishop_control[64][2]{};
+    short rook_control[64][2]{};
+    short queen_control[64][2]{};
 
     short own_king_tropism[6][2]{};
     short opp_king_tropism[6][2]{};

@@ -561,6 +561,10 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
 
             mobility++;
 
+            scores.mid += KNIGHT_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos]];
+            scores.end += KNIGHT_CONTROL_END[MAILBOX_TO_STANDARD[new_pos]];
+            trace.knight_control[MAILBOX_TO_STANDARD[new_pos]][WHITE_COLOR]++;
+
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
             if (occupied < BLACK_PAWN) {
@@ -601,6 +605,10 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
                 mobility--;
 
             mobility++;
+
+            scores.mid += KNIGHT_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+            scores.end += KNIGHT_CONTROL_END[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+            trace.knight_control[MAILBOX_TO_STANDARD[new_pos] ^ 56][BLACK_COLOR]++;
 
             // If we hit a piece of ours, we still add 1 to mobility because
             // that means we are protecting a piece of ours.
@@ -681,6 +689,10 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
 
                 mobility++;
 
+                scores.mid += BISHOP_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos]];
+                scores.end += BISHOP_CONTROL_END[MAILBOX_TO_STANDARD[new_pos]];
+                trace.bishop_control[MAILBOX_TO_STANDARD[new_pos]][WHITE_COLOR]++;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -726,6 +738,10 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
                     mobility--;
 
                 mobility++;
+
+                scores.mid += BISHOP_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                scores.end += BISHOP_CONTROL_END[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                trace.bishop_control[MAILBOX_TO_STANDARD[new_pos] ^ 56][BLACK_COLOR]++;
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -813,6 +829,10 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
 
                 mobility++;
 
+                scores.mid += ROOK_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos]];
+                scores.end += ROOK_CONTROL_END[MAILBOX_TO_STANDARD[new_pos]];
+                trace.rook_control[MAILBOX_TO_STANDARD[new_pos]][WHITE_COLOR]++;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -872,6 +892,10 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
                     mobility--;
 
                 mobility++;
+
+                scores.mid += ROOK_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                scores.end += ROOK_CONTROL_END[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                trace.rook_control[MAILBOX_TO_STANDARD[new_pos] ^ 56][BLACK_COLOR]++;
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -960,6 +984,10 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
 
                 mobility++;
 
+                scores.mid += QUEEN_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos]];
+                scores.end += QUEEN_CONTROL_END[MAILBOX_TO_STANDARD[new_pos]];
+                trace.queen_control[MAILBOX_TO_STANDARD[new_pos]][WHITE_COLOR]++;
+
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
                 if (occupied < BLACK_PAWN) {
@@ -1018,6 +1046,10 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
                     mobility--;
 
                 mobility++;
+
+                scores.mid += QUEEN_CONTROL_MID[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                scores.end += QUEEN_CONTROL_END[MAILBOX_TO_STANDARD[new_pos] ^ 56];
+                trace.queen_control[MAILBOX_TO_STANDARD[new_pos] ^ 56][BLACK_COLOR]++;
 
                 // If we hit a piece of ours, we still add 1 to mobility because
                 // that means we are protecting a piece of ours.
@@ -1485,6 +1517,11 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.rook_mobility, 15);
     get_coefficient_array(coefficients, trace.queen_mobility, 28);
 
+    get_coefficient_array(coefficients, trace.knight_control, 64);
+    get_coefficient_array(coefficients, trace.bishop_control, 64);
+    get_coefficient_array(coefficients, trace.rook_control, 64);
+    get_coefficient_array(coefficients, trace.queen_control, 64);
+
     get_coefficient_array(coefficients, trace.own_king_tropism, 6);
     get_coefficient_array(coefficients, trace.opp_king_tropism, 6);
 
@@ -1549,6 +1586,11 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_double(parameters, BISHOP_MOBILITY_MID, BISHOP_MOBILITY_END, 14);
     get_initial_parameter_array_double(parameters, ROOK_MOBILITY_MID, ROOK_MOBILITY_END, 15);
     get_initial_parameter_array_double(parameters, QUEEN_MOBILITY_MID, QUEEN_MOBILITY_END, 28);
+
+    get_initial_parameter_array_double(parameters, KNIGHT_CONTROL_MID, KNIGHT_CONTROL_END, 64);
+    get_initial_parameter_array_double(parameters, BISHOP_CONTROL_MID, BISHOP_CONTROL_END, 64);
+    get_initial_parameter_array_double(parameters, ROOK_CONTROL_MID, ROOK_CONTROL_END, 64);
+    get_initial_parameter_array_double(parameters, QUEEN_CONTROL_MID, QUEEN_CONTROL_END, 64);
 
     get_initial_parameter_array_double(parameters, OWN_KING_DISTANCE_COEFFICIENTS_MID, OWN_KING_DISTANCE_COEFFICIENTS_END, 6);
     get_initial_parameter_array_double(parameters, OPP_KING_DISTANCE_COEFFICIENTS_MID, OPP_KING_DISTANCE_COEFFICIENTS_END, 6);
@@ -1633,6 +1675,11 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "BISHOP_MOBILITY", 14, false);
     print_array(ss, parameters_copy, index, "ROOK_MOBILITY", 15, false);
     print_array(ss, parameters_copy, index, "QUEEN_MOBILITY", 28, false);
+
+    print_array(ss, parameters_copy, index, "KNIGHT_CONTROL", 64, false);
+    print_array(ss, parameters_copy, index, "BISHOP_CONTROL", 64, false);
+    print_array(ss, parameters_copy, index, "ROOK_CONTROL", 64, false);
+    print_array(ss, parameters_copy, index, "QUEEN_CONTROL", 64, false);
 
     print_array(ss, parameters_copy, index, "OWN_KING_DISTANCE_COEFFICIENTS", 6, true);
     print_array(ss, parameters_copy, index, "OPP_KING_DISTANCE_COEFFICIENTS", 6, true);
