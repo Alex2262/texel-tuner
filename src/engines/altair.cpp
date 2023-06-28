@@ -176,15 +176,14 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
     return static_cast<PLY_TYPE>(std::stoi(half_move_clock));
 }
 
-Square relative_perspective_square(Square square, Color color) {
-    return static_cast<Square>(square ^ (~color * 56));
-}
-
 
 // --------------------------------------------------
 //                     EVALUATION
 // --------------------------------------------------
 
+Square relative_perspective_square(Square square, Color color) {
+    return static_cast<Square>(square ^ (~color * 56));
+}
 
 SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, int& game_phase, Trace& trace) {
     SCORE_TYPE score = 0;
