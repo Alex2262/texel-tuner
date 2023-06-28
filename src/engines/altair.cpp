@@ -5,6 +5,7 @@
 #include "altair.h"
 #include "bitboard.h"
 #include "evaluation_constants.h"
+#include "tables.h"
 #include <regex>
 #include <iostream>
 #include <array>
@@ -102,12 +103,12 @@ void Position::place_piece(Piece piece, Square square) {
 
 PLY_TYPE Position::set_fen(const std::string& fen_string) {
 
-    std::string reduced_fen_string = std::regex_replace(fen_string, std::regex("^ +| +$|( ) +"), "$1");
-    std::vector<std::string> fen_tokens = split(reduced_fen_string, ' ');
+    //std::string reduced_fen_string = std::regex_replace(fen_string, std::regex("^ +| +$|( ) +"), "$1");
+    std::vector<std::string> fen_tokens = split(fen_string, ' ');
 
-    if (fen_tokens.size() < 4) {
-        throw std::invalid_argument( "Fen is incorrect" );
-    }
+    //if (fen_tokens.size() < 4) {
+    //    throw std::invalid_argument( "Fen is incorrect" );
+    //}
 
     const std::string position = fen_tokens[0];
     const std::string player = fen_tokens[1];
@@ -115,10 +116,10 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
     const std::string en_passant = fen_tokens[3];
 
     std::string half_move_clock = fen_tokens.size() >= 5 ? fen_tokens[4] : "0";
-    std::string full_move_counter = fen_tokens.size() >= 6 ? fen_tokens[5] : "1";
+    //std::string full_move_counter = fen_tokens.size() >= 6 ? fen_tokens[5] : "1";
 
     if (!is_number(half_move_clock)) half_move_clock = "0";
-    if (!is_number(full_move_counter)) full_move_counter = "0";
+    //if (!is_number(full_move_counter)) full_move_counter = "0";
 
     side = (player == "w") ? WHITE : BLACK;
 
@@ -181,9 +182,42 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
 //                     EVALUATION
 // --------------------------------------------------
 
-Square relative_perspective_square(Square square, Color color) {
+Square get_white_relative_square(Square square, Color color) {
+    return static_cast<Square>(square ^ (color * 56));
+}
+
+Square get_black_relative_square(Square square, Color color) {
     return static_cast<Square>(square ^ (~color * 56));
 }
+
+SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trace& trace) {
+    SCORE_TYPE score = 0;
+    BITBOARD our_pawns = position.get_pieces(PAWN, color);
+    BITBOARD opp_pawns = position.get_pieces(PAWN, ~color);
+
+    while (our_pawns) {
+        Square square = poplsb(our_pawns);
+        Square black_relative_square = get_black_relative_square(square, color);
+        Rank relative_rank = rank_of(get_white_relative_square(square, color));
+
+        score += PIECE_VALUES[PAWN];
+        trace.piece_values[PAWN][color]++;
+
+        score += PIECE_SQUARE_TABLES[PAWN][black_relative_square];
+        trace.piece_square_tables[PAWN][black_relative_square][color]++;
+
+        game_phase += GAME_PHASE_SCORES[PAWN];
+
+        // PASSED PAWN
+        if (!(passed_pawn_masks[color][square] & opp_pawns)) {
+            score += PASSED_PAWN_BONUSES[relative_rank];
+            trace.passed_pawn_bonuses[relative_rank][color]++;
+        }
+    }
+
+    return score;
+}
+
 
 SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, int& game_phase, Trace& trace) {
     SCORE_TYPE score = 0;
@@ -192,10 +226,10 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
     while (pieces) {
         Square square = poplsb(pieces);
         score += PIECE_VALUES[piece_type];
-        trace.material[piece_type][color]++;
+        trace.piece_values[piece_type][color]++;
 
-        score += PIECE_SQUARE_TABLES[piece_type][relative_perspective_square(square, color)];
-        trace.piece_square_tables[piece_type][relative_perspective_square(square, color)][color]++;
+        score += PIECE_SQUARE_TABLES[piece_type][get_black_relative_square(square, color)];
+        trace.piece_square_tables[piece_type][get_black_relative_square(square, color)][color]++;
 
         game_phase += GAME_PHASE_SCORES[piece_type];
     }
@@ -205,7 +239,11 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
 
 SCORE_TYPE evaluate_pieces(Position& position, int& game_phase, Trace& trace) {
     SCORE_TYPE score = 0;
-    for (int piece = 0; piece < 6; piece++) {
+
+    score += evaluate_pawns(position, WHITE, game_phase, trace);
+    score -= evaluate_pawns(position, BLACK, game_phase, trace);
+
+    for (int piece = 1; piece < 6; piece++) {
         score += evaluate_piece(position, static_cast<PieceType>(piece), WHITE, game_phase, trace);
         score -= evaluate_piece(position, static_cast<PieceType>(piece), BLACK, game_phase, trace);
     }
@@ -266,7 +304,7 @@ static void print_single(std::stringstream& ss, const parameters_t& parameters, 
     print_parameter(ss, parameters[index]);
     index++;
 
-    ss << ";" << endl;
+    ss << ";" << endl << endl;
 }
 
 static void print_array(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count) {
@@ -283,7 +321,7 @@ static void print_array(std::stringstream& ss, const parameters_t& parameters, i
     }
 
     if (count == 64) ss << "\n";
-    ss << "};" << endl;
+    ss << "};" << endl << endl;
 }
 
 static void print_array_2d(std::stringstream& ss, const parameters_t& parameters, int& index, const std::string& name, int count1, int count2) {
@@ -309,7 +347,7 @@ static void print_array_2d(std::stringstream& ss, const parameters_t& parameters
 
     }
 
-    ss << "};\n" << endl;
+    ss << "};\n" << endl << endl;
 }
 
 
@@ -344,8 +382,10 @@ static void rebalance_piece_square_tables(parameters_t& parameters, const int ma
 static coefficients_t get_coefficients(const Trace& trace)
 {
     coefficients_t coefficients;
-    get_coefficient_array(coefficients, trace.material, 6);
+    get_coefficient_array(coefficients, trace.piece_values, 6);
     get_coefficient_array_2d(coefficients, trace.piece_square_tables, 6, 64);
+
+    get_coefficient_array(coefficients, trace.passed_pawn_bonuses, 8);
 
     return coefficients;
 }
@@ -355,6 +395,8 @@ parameters_t AltairEval::get_initial_parameters() {
     parameters_t parameters;
     get_initial_parameter_array(parameters, PIECE_VALUES, 6);
     get_initial_parameter_array_2d(parameters, PIECE_SQUARE_TABLES, 6, 64);
+
+    get_initial_parameter_array(parameters, PASSED_PAWN_BONUSES, 8);
 
     return parameters;
 }
@@ -384,6 +426,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
+
+    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8);
 
     std::cout << ss.str() << "\n";
 }

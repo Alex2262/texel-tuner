@@ -55,9 +55,11 @@ constexpr int GAME_PHASE_SCORES[6] = {0, 1, 1, 2, 4, 0};
 struct Trace {
     int score={};
 
-    short material[6][2]{};
+    short piece_values[6][2]{};
 
     short piece_square_tables[6][64][2]{};
+
+    short passed_pawn_bonuses[8][2]{};
 };
 
 namespace Altair {

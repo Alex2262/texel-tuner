@@ -16,6 +16,7 @@ add_executable(tuner
         engines/evaluation_constants.h
         engines/bitboard.cpp
         engines/bitboard.h
-        engines/types.h)
+        engines/types.h
+        engines/tables.h)
 
 target_link_libraries(tuner PRIVATE Threads::Threads)
