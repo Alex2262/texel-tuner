@@ -61,22 +61,21 @@ BITBOARD Position::get_pieces(PieceType piece, Color color) const {
     return pieces[piece + color * COLOR_OFFSET];
 }
 
+BITBOARD Position::get_pieces(Color color) const {
+    return get_pieces(PAWN, color) |
+           get_pieces(KNIGHT, color) |
+           get_pieces(BISHOP, color) |
+           get_pieces(ROOK, color) |
+           get_pieces(QUEEN, color) |
+           get_pieces(KING, color);
+}
+
 [[nodiscard]] BITBOARD Position::get_our_pieces() {
-    return get_pieces(PAWN, side) |
-           get_pieces(KNIGHT, side) |
-           get_pieces(BISHOP, side) |
-           get_pieces(ROOK, side) |
-           get_pieces(QUEEN, side) |
-           get_pieces(KING, side);
+    return get_pieces(side);
 }
 
 [[nodiscard]] BITBOARD Position::get_opp_pieces() {
-    return get_pieces(PAWN, static_cast<Color>(~side)) |
-           get_pieces(KNIGHT, static_cast<Color>(~side)) |
-           get_pieces(BISHOP, static_cast<Color>(~side)) |
-           get_pieces(ROOK, static_cast<Color>(~side)) |
-           get_pieces(QUEEN, static_cast<Color>(~side)) |
-           get_pieces(KING, static_cast<Color>(~side));
+    return get_pieces(~side);
 }
 
 [[nodiscard]] BITBOARD Position::get_all_pieces() const {
@@ -208,10 +207,21 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
 
         game_phase += GAME_PHASE_SCORES[PAWN];
 
+        Direction up = color == WHITE ? NORTH : SOUTH;
+
         // PASSED PAWN
         if (!(passed_pawn_masks[color][square] & opp_pawns)) {
             score += PASSED_PAWN_BONUSES[relative_rank];
             trace.passed_pawn_bonuses[relative_rank][color]++;
+
+            // BLOCKERS
+            auto blocker_square = static_cast<Square>(square + static_cast<Square>(up));
+            if (from_square(blocker_square) & position.get_pieces(~color)) {
+                score += PASSED_PAWN_BLOCKERS[get_piece_type(position.board[blocker_square], ~color)][rank_of(
+                        get_white_relative_square(blocker_square, color))];
+                trace.passed_pawn_blockers[get_piece_type(position.board[blocker_square], ~color)][rank_of(
+                        get_white_relative_square(blocker_square, color))][color]++;
+            }
         }
     }
 
@@ -387,6 +397,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array(coefficients, trace.passed_pawn_bonuses, 8);
 
+    get_coefficient_array_2d(coefficients, trace.passed_pawn_blockers, 6, 8);
+
     return coefficients;
 }
 
@@ -397,6 +409,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, PIECE_SQUARE_TABLES, 6, 64);
 
     get_initial_parameter_array(parameters, PASSED_PAWN_BONUSES, 8);
+
+    get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS, 6, 8);
 
     return parameters;
 }
@@ -428,6 +442,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
 
     print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8);
+
+    print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BLOCKERS", 6, 8);
 
     std::cout << ss.str() << "\n";
 }

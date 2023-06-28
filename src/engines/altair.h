@@ -34,6 +34,7 @@ public:
 
     [[nodiscard]] BITBOARD get_pieces(Piece piece) const;
     [[nodiscard]] BITBOARD get_pieces(PieceType piece, Color color) const;
+    [[nodiscard]] BITBOARD get_pieces(Color color) const;
 
     [[nodiscard]] BITBOARD get_our_pieces();
     [[nodiscard]] BITBOARD get_opp_pieces();
@@ -60,6 +61,8 @@ struct Trace {
     short piece_square_tables[6][64][2]{};
 
     short passed_pawn_bonuses[8][2]{};
+
+    short passed_pawn_blockers[6][8][2]{};
 };
 
 namespace Altair {
