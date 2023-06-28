@@ -7,6 +7,15 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 find_package(Threads REQUIRED)
 
-add_executable(tuner "main.cpp" "tuner.cpp" "threadpool.cpp" "engines/toy.cpp" "engines/toy_tapered.cpp" "engines/fourku.cpp" engines/altair.cpp engines/altair.h)
+add_executable(tuner
+        "main.cpp"
+        "tuner.cpp"
+        "threadpool.cpp"
+        engines/altair.cpp
+        engines/altair.h
+        engines/evaluation_constants.h
+        engines/bitboard.cpp
+        engines/bitboard.h
+        engines/types.h)
 
 target_link_libraries(tuner PRIVATE Threads::Threads)

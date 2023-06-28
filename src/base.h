@@ -32,21 +32,30 @@ enum class PhaseStages
     Endgame = 1
 };
 
-constexpr int32_t S(const int32_t mg, const int32_t eg)
-{
-    //return (eg << 16) + mg;
-    return static_cast<int32_t>(static_cast<uint32_t>(eg) << 16) + mg;
+typedef int32_t SCORE_TYPE;
+
+consteval SCORE_TYPE S(int mg, int eg) {
+    return SCORE_TYPE(static_cast<int>(static_cast<unsigned int>(eg) << 16) + mg);
 }
 
-static constexpr int32_t mg_score(int32_t score)
-{
-    return static_cast<int16_t>(score);
+inline int eg_score(SCORE_TYPE s) {
+    const auto eg = static_cast<uint16_t>(static_cast<uint32_t>(s + 0x8000) >> 16);
+
+    int16_t v;
+    std::memcpy(&v, &eg, sizeof(eg));
+
+    return static_cast<int>(v);
 }
 
-static constexpr int32_t eg_score(int32_t score)
-{
-    return static_cast<int16_t>((score + 0x8000) >> 16);
+inline int mg_score(SCORE_TYPE s) {
+    const auto mg = static_cast<uint16_t>(s);
+
+    int16_t v;
+    std::memcpy(&v, &mg, sizeof(mg));
+
+    return static_cast<int>(v);
 }
+
 #else
 constexpr int32_t S(const int32_t mg, const int32_t eg)
 {
@@ -82,31 +91,6 @@ void get_initial_parameter_array_2d(parameters_t& parameters, const T& parameter
     for (int i = 0; i < size1; i++)
     {
         get_initial_parameter_array(parameters, parameter[i], size2);
-    }
-}
-
-template<typename T>
-void get_initial_parameter_single_double(parameters_t& parameters, const T& mg, const T& eg)
-{
-    pair_t pair = { (double) mg, (double) eg };
-    parameters.push_back(pair);
-}
-
-template<typename T>
-void get_initial_parameter_array_double(parameters_t& parameters, const T& mg, const T& eg, const int size)
-{
-    for (int i = 0; i < size; i++)
-    {
-        get_initial_parameter_single_double(parameters, mg[i], eg[i]);
-    }
-}
-
-template<typename T>
-void get_initial_parameter_array_2d_double(parameters_t& parameters, const T& mg, const T& eg, const int size1, const int size2)
-{
-    for (int i = 0; i < size1; i++)
-    {
-        get_initial_parameter_array_double(parameters, mg[i], eg[i], size2);
     }
 }
 

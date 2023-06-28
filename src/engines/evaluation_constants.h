@@ -1,0 +1,16 @@
+//
+// Created by Alexander Tian on 6/27/23.
+//
+
+#ifndef TUNER_EVALUATION_CONSTANTS_H
+#define TUNER_EVALUATION_CONSTANTS_H
+
+#include <array>
+#include "types.h"
+#include "../base.h"
+
+constexpr SCORE_TYPE PIECE_VALUES[6]{};
+
+constexpr SCORE_TYPE PIECE_SQUARE_TABLES[6][64]{};
+
+#endif //TUNER_EVALUATION_CONSTANTS_H

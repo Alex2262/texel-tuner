@@ -2,16 +2,13 @@
 #define CONFIG_H 1
 
 #include<cstdint>
-#include "engines/fourku.h"
-#include "engines/toy.h"
-#include "engines/toy_tapered.h"
 #include "engines/altair.h"
 
 #define TAPERED 1
 
 using TuneEval = Altair::AltairEval;
 constexpr int32_t thread_count = 8;
-constexpr double preferred_k = 0; //2.71333; // 3.04511;
-constexpr bool retune_from_zero = false;
+constexpr double preferred_k = 2.53815; //2.71333; // 3.04511;
+constexpr bool retune_from_zero = true;
 
 #endif // !CONFIG_H
