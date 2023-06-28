@@ -9,8 +9,8 @@
 #include "types.h"
 #include "../base.h"
 
-constexpr SCORE_TYPE PIECE_VALUES[6]{};
+constexpr SCORE_TYPE PIECE_VALUES[6] = {0};
 
-constexpr SCORE_TYPE PIECE_SQUARE_TABLES[6][64]{};
+constexpr SCORE_TYPE PIECE_SQUARE_TABLES[6][64] = {0};
 
 #endif //TUNER_EVALUATION_CONSTANTS_H

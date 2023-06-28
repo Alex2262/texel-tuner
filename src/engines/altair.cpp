@@ -47,9 +47,8 @@ Piece piece_to_num(char piece) {
 
 bool is_number(const std::string& s)
 {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it)) ++it;
-    return !s.empty() && it == s.end();
+    return !s.empty() && std::find_if(s.begin(),
+                                      s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
 }
 
 
@@ -115,8 +114,11 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
     const std::string castling = fen_tokens[2];
     const std::string en_passant = fen_tokens[3];
 
-    const std::string half_move_clock = fen_tokens.size() >= 5 ? fen_tokens[4] : "0";
-    const std::string full_move_counter = fen_tokens.size() >= 6 ? fen_tokens[5] : "1";
+    std::string half_move_clock = fen_tokens.size() >= 5 ? fen_tokens[4] : "0";
+    std::string full_move_counter = fen_tokens.size() >= 6 ? fen_tokens[5] : "1";
+
+    if (!is_number(half_move_clock)) half_move_clock = "0";
+    if (!is_number(full_move_counter)) full_move_counter = "0";
 
     side = (player == "w") ? WHITE : BLACK;
 
@@ -178,9 +180,11 @@ Square relative_perspective_square(Square square, Color color) {
     return static_cast<Square>(square ^ (~color * 56));
 }
 
+
 // --------------------------------------------------
 //                     EVALUATION
 // --------------------------------------------------
+
 
 SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, int& game_phase, Trace& trace) {
     SCORE_TYPE score = 0;
@@ -223,6 +227,12 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
     return (position.side * -2 + 1) * evaluation;
 }
 
+
+// --------------------------------------------------
+//                   TUNING STUFF
+// --------------------------------------------------
+
+
 static int32_t round_value(tune_t value)
 {
     return static_cast<int32_t>(round(value));
@@ -242,13 +252,13 @@ static void print_parameter(std::stringstream& ss, const pair_t parameter)
         ss << " ";
     }
 
-    ss << ", ";
+    ss << mg << ",";
 
     for (int i = 0; i < 4 - eg_size; i++) {
         ss << " ";
     }
 
-    ss << ")";
+    ss << eg << ")";
 
 }
 
@@ -282,6 +292,7 @@ static void print_array_2d(std::stringstream& ss, const parameters_t& parameters
 
     for (auto i = 0; i < count1; i++) {
         ss << "\t{";
+        if (count2 == 64) ss << "\n\t\t";
 
         for (auto j = 0; j < count2; j++) {
             print_parameter(ss, parameters[index]);
@@ -289,17 +300,46 @@ static void print_array_2d(std::stringstream& ss, const parameters_t& parameters
 
             if (j != count2 - 1) ss << ", ";
 
-            if (count2 == 64 && (j + 1) % 8 == 0 && j != count2 - 1) ss << "\n\t ";
+            if (count2 == 64 && (j + 1) % 8 == 0 && j != count2 - 1) ss << "\n\t\t";
         }
 
+        if (count2 == 64) ss << "\n\t";
         ss << "}";
         if (i != count1 - 1) ss << ",";
         ss << "\n";
 
     }
+
     ss << "};\n" << endl;
 }
 
+
+static void rebalance_piece_square_tables(parameters_t& parameters, const int material_offset, const int pst_offset) {
+
+    // loop through all pieces excluding the king
+    for (int piece = 0; piece <= 4; piece++) {
+
+        for (int stage = 0; stage < 2; stage++) {
+
+            double sum = 0;
+
+            for (int i = 0; i < 64; i++) {
+                const int pst_index = pst_offset + piece * 64 + i;
+                sum += parameters[pst_index][stage];
+            }
+
+            const double average = sum / 64;
+
+            parameters[material_offset + piece][stage] += average;
+
+            for (int i = 0; i < 64; i++) {
+                const int pst_index = pst_offset + piece * 64 + i;
+                parameters[pst_index][stage] -= average;
+            }
+
+        }
+    }
+}
 
 
 static coefficients_t get_coefficients(const Trace& trace)
@@ -338,6 +378,7 @@ EvalResult AltairEval::get_fen_eval_result(const string &fen) {
 
 void AltairEval::print_parameters(const parameters_t &parameters) {
     parameters_t parameters_copy = parameters;
+    rebalance_piece_square_tables(parameters_copy, 0, 6);
 
     int index = 0;
     stringstream ss;
