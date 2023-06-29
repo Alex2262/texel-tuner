@@ -208,14 +208,21 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
         game_phase += GAME_PHASE_SCORES[PAWN];
 
         Direction up = color == WHITE ? NORTH : SOUTH;
+        Direction down = color == WHITE ? SOUTH : NORTH;
 
         // PASSED PAWN
         if (!(passed_pawn_masks[color][square] & opp_pawns)) {
-            score += PASSED_PAWN_BONUSES[relative_rank];
-            trace.passed_pawn_bonuses[relative_rank][color]++;
+            int protectors = 0;
+            if (!(from_square(square) & MASK_FILE[FILE_A]) &&
+                position.board[square + down + WEST] == get_piece(PAWN, color)) protectors++;
+            if (!(from_square(square) & MASK_FILE[FILE_H]) &&
+                position.board[square + down + EAST] == get_piece(PAWN, color)) protectors++;
+
+            score += PASSED_PAWN_BONUSES[protectors][relative_rank];
+            trace.passed_pawn_bonuses[protectors][relative_rank][color]++;
 
             // BLOCKERS
-            auto blocker_square = static_cast<Square>(square + static_cast<Square>(up));
+            auto blocker_square = square + up;
             if (from_square(blocker_square) & position.get_pieces(~color)) {
                 score += PASSED_PAWN_BLOCKERS[get_piece_type(position.board[blocker_square], ~color)][rank_of(
                         get_white_relative_square(blocker_square, color))];
@@ -395,7 +402,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.piece_values, 6);
     get_coefficient_array_2d(coefficients, trace.piece_square_tables, 6, 64);
 
-    get_coefficient_array(coefficients, trace.passed_pawn_bonuses, 8);
+    get_coefficient_array_2d(coefficients, trace.passed_pawn_bonuses, 3, 8);
 
     get_coefficient_array_2d(coefficients, trace.passed_pawn_blockers, 6, 8);
 
@@ -408,7 +415,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array(parameters, PIECE_VALUES, 6);
     get_initial_parameter_array_2d(parameters, PIECE_SQUARE_TABLES, 6, 64);
 
-    get_initial_parameter_array(parameters, PASSED_PAWN_BONUSES, 8);
+    get_initial_parameter_array_2d(parameters, PASSED_PAWN_BONUSES, 3, 8);
 
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS, 6, 8);
 
@@ -441,7 +448,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
 
-    print_array(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 8);
+    print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 3, 8);
 
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BLOCKERS", 6, 8);
 
