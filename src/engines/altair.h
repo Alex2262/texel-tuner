@@ -65,6 +65,8 @@ struct Trace {
     short passed_pawn_blockers[6][8][2]{};
 
     short phalanx_pawn_bonuses[8][2]{};
+
+    short isolated_pawn_penalty[2]{};
 };
 
 namespace Altair {
