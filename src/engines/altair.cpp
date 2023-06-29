@@ -191,9 +191,18 @@ Square get_black_relative_square(Square square, Color color) {
 
 SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trace& trace) {
     SCORE_TYPE score = 0;
+
+    Direction up = color == WHITE ? NORTH : SOUTH;
+    Direction down = color == WHITE ? SOUTH : NORTH;
+
     BITBOARD our_pawns = position.get_pieces(PAWN, color);
     BITBOARD opp_pawns = position.get_pieces(PAWN, ~color);
+
     BITBOARD phalanx_pawns = our_pawns & shift<WEST>(our_pawns);
+    BITBOARD doubled_pawns = our_pawns & shift(up, our_pawns);
+
+    score *= static_cast<SCORE_TYPE>(popcount(doubled_pawns)) * DOUBLED_PAWN_PENALTY;
+    trace.doubled_pawn_penalty[color] += popcount(doubled_pawns);
 
     while (our_pawns) {
         Square square = poplsb(our_pawns);
@@ -207,9 +216,6 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
         trace.piece_square_tables[PAWN][black_relative_square][color]++;
 
         game_phase += GAME_PHASE_SCORES[PAWN];
-
-        Direction up = color == WHITE ? NORTH : SOUTH;
-        Direction down = color == WHITE ? SOUTH : NORTH;
 
         // PASSED PAWN
         if (!(passed_pawn_masks[color][square] & opp_pawns)) {
@@ -418,6 +424,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array(coefficients, trace.phalanx_pawn_bonuses, 8);
 
+    get_coefficient_single(coefficients, trace.doubled_pawn_penalty);
+
     return coefficients;
 }
 
@@ -432,6 +440,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS, 6, 8);
 
     get_initial_parameter_array(parameters, PHALANX_PAWN_BONUSES, 8);
+
+    get_initial_parameter_single(parameters, DOUBLED_PAWN_PENALTY);
 
     return parameters;
 }
@@ -467,6 +477,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BLOCKERS", 6, 8);
 
     print_array(ss, parameters_copy, index, "PHALANX_PAWN_BONUSES", 8);
+
+    print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
 
     std::cout << ss.str() << "\n";
 }
