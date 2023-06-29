@@ -193,6 +193,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
     SCORE_TYPE score = 0;
     BITBOARD our_pawns = position.get_pieces(PAWN, color);
     BITBOARD opp_pawns = position.get_pieces(PAWN, ~color);
+    BITBOARD phalanx_pawns = our_pawns & shift<WEST>(our_pawns);
 
     while (our_pawns) {
         Square square = poplsb(our_pawns);
@@ -230,6 +231,15 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
                         get_white_relative_square(blocker_square, color))][color]++;
             }
         }
+    }
+
+    // Phalanx Pawns
+    while (phalanx_pawns) {
+        Square square = poplsb(phalanx_pawns);
+        Rank relative_rank = rank_of(get_white_relative_square(square, color));
+
+        score += PHALANX_PAWN_BONUSES[relative_rank];
+        trace.phalanx_pawn_bonuses[relative_rank][color]++;
     }
 
     return score;
@@ -406,6 +416,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array_2d(coefficients, trace.passed_pawn_blockers, 6, 8);
 
+    get_coefficient_array(coefficients, trace.phalanx_pawn_bonuses, 8);
+
     return coefficients;
 }
 
@@ -418,6 +430,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BONUSES, 3, 8);
 
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS, 6, 8);
+
+    get_initial_parameter_array(parameters, PHALANX_PAWN_BONUSES, 8);
 
     return parameters;
 }
@@ -451,6 +465,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 3, 8);
 
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BLOCKERS", 6, 8);
+
+    print_array(ss, parameters_copy, index, "PHALANX_PAWN_BONUSES", 8);
 
     std::cout << ss.str() << "\n";
 }
