@@ -259,6 +259,11 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
     SCORE_TYPE score = 0;
     BITBOARD pieces = position.get_pieces(piece_type, color);
 
+    if (piece_type == BISHOP && popcount(pieces) >= 2) {
+        score += BISHOP_PAIR_BONUS;
+        trace.bishop_pair_bonus[color]++;
+    }
+
     while (pieces) {
         Square square = poplsb(pieces);
         score += PIECE_VALUES[piece_type];
@@ -429,6 +434,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.isolated_pawn_penalty);
 
+    get_coefficient_single(coefficients, trace.bishop_pair_bonus);
+
     return coefficients;
 }
 
@@ -445,6 +452,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array(parameters, PHALANX_PAWN_BONUSES, 8);
 
     get_initial_parameter_single(parameters, ISOLATED_PAWN_PENALTY);
+
+    get_initial_parameter_single(parameters, BISHOP_PAIR_BONUS);
 
     return parameters;
 }
@@ -482,6 +491,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "PHALANX_PAWN_BONUSES", 8);
 
     print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY");
+
+    print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
 
     std::cout << ss.str() << "\n";
 }

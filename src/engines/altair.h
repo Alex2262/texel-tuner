@@ -57,16 +57,16 @@ struct Trace {
     int score={};
 
     short piece_values[6][2]{};
-
     short piece_square_tables[6][64][2]{};
 
     short passed_pawn_bonuses[3][8][2]{};
-
     short passed_pawn_blockers[6][8][2]{};
 
     short phalanx_pawn_bonuses[8][2]{};
 
     short isolated_pawn_penalty[2]{};
+
+    short bishop_pair_bonus[2]{};
 };
 
 namespace Altair {
