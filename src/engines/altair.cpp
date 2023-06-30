@@ -181,6 +181,18 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
 //                     EVALUATION
 // --------------------------------------------------
 
+struct EvaluationInformation {
+    int game_phase = 0;
+    BITBOARD pieces[2]{};
+};
+
+void initialize_evaluation_information(Position& position, EvaluationInformation& evaluation_information) {
+    evaluation_information.game_phase = 0;
+
+    evaluation_information.pieces[WHITE] = position.get_pieces(WHITE);
+    evaluation_information.pieces[BLACK] = position.get_pieces(BLACK);
+}
+
 Square get_white_relative_square(Square square, Color color) {
     return static_cast<Square>(square ^ (color * 56));
 }
@@ -189,7 +201,7 @@ Square get_black_relative_square(Square square, Color color) {
     return static_cast<Square>(square ^ (~color * 56));
 }
 
-SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trace& trace) {
+SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
     BITBOARD our_pawns = position.get_pieces(PAWN, color);
     BITBOARD opp_pawns = position.get_pieces(PAWN, ~color);
@@ -208,7 +220,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
         score += PIECE_SQUARE_TABLES[PAWN][black_relative_square];
         trace.piece_square_tables[PAWN][black_relative_square][color]++;
 
-        game_phase += GAME_PHASE_SCORES[PAWN];
+        evaluation_information.game_phase += GAME_PHASE_SCORES[PAWN];
 
         Direction up = color == WHITE ? NORTH : SOUTH;
         Direction down = color == WHITE ? SOUTH : NORTH;
@@ -226,8 +238,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
 
             // BLOCKERS
             auto blocker_square = square + up;
-            BITBOARD opponent_pieces = position.get_pieces(~color);
-            if (from_square(blocker_square) & opponent_pieces) {
+            if (from_square(blocker_square) & evaluation_information.pieces[~color]) {
                 score += PASSED_PAWN_BLOCKERS[get_piece_type(position.board[blocker_square], ~color)][rank_of(
                         get_white_relative_square(blocker_square, color))];
                 trace.passed_pawn_blockers[get_piece_type(position.board[blocker_square], ~color)][rank_of(
@@ -235,7 +246,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
             }
 
             auto blocker_square_2 = blocker_square + up;
-            if (relative_rank <= 5 && from_square(blocker_square_2) & opponent_pieces) {
+            if (relative_rank <= 5 && from_square(blocker_square_2) & evaluation_information.pieces[~color]) {
                 score += PASSED_PAWN_BLOCKERS_2[get_piece_type(position.board[blocker_square_2], ~color)][rank_of(
                         get_white_relative_square(blocker_square_2, color))];
                 trace.passed_pawn_blockers_2[get_piece_type(position.board[blocker_square_2], ~color)][rank_of(
@@ -264,7 +275,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, int& game_phase, Trac
 }
 
 
-SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, int& game_phase, Trace& trace) {
+SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
     BITBOARD pieces = position.get_pieces(piece_type, color);
 
@@ -281,21 +292,21 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
         score += PIECE_SQUARE_TABLES[piece_type][get_black_relative_square(square, color)];
         trace.piece_square_tables[piece_type][get_black_relative_square(square, color)][color]++;
 
-        game_phase += GAME_PHASE_SCORES[piece_type];
+        evaluation_information.game_phase += GAME_PHASE_SCORES[piece_type];
     }
 
     return score;
 }
 
-SCORE_TYPE evaluate_pieces(Position& position, int& game_phase, Trace& trace) {
+SCORE_TYPE evaluate_pieces(Position& position, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
 
-    score += evaluate_pawns(position, WHITE, game_phase, trace);
-    score -= evaluate_pawns(position, BLACK, game_phase, trace);
+    score += evaluate_pawns(position, WHITE, evaluation_information, trace);
+    score -= evaluate_pawns(position, BLACK, evaluation_information, trace);
 
     for (int piece = 1; piece < 6; piece++) {
-        score += evaluate_piece(position, static_cast<PieceType>(piece), WHITE, game_phase, trace);
-        score -= evaluate_piece(position, static_cast<PieceType>(piece), BLACK, game_phase, trace);
+        score += evaluate_piece(position, static_cast<PieceType>(piece), WHITE, evaluation_information, trace);
+        score -= evaluate_piece(position, static_cast<PieceType>(piece), BLACK, evaluation_information, trace);
     }
 
     return score;
@@ -303,10 +314,13 @@ SCORE_TYPE evaluate_pieces(Position& position, int& game_phase, Trace& trace) {
 
 SCORE_TYPE evaluate(Position& position, Trace& trace) {
 
+    EvaluationInformation evaluation_information{};
+    initialize_evaluation_information(position, evaluation_information);
+
     SCORE_TYPE score = 0;
     int game_phase = 0;
 
-    score += evaluate_pieces(position, game_phase, trace);
+    score += evaluate_pieces(position, evaluation_information, trace);
 
     score += (position.side * -2 + 1) * TEMPO_BONUS;
     trace.tempo_bonus[position.side]++;
