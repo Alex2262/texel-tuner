@@ -307,6 +307,10 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
     int game_phase = 0;
 
     score += evaluate_pieces(position, game_phase, trace);
+
+    score += (position.side * -2 + 1) * TEMPO_BONUS;
+    trace.tempo_bonus[position.side]++;
+
     game_phase = std::min(game_phase, 24);
 
     SCORE_TYPE evaluation = (mg_score(score) * game_phase + eg_score(score) * (24 - game_phase)) / 24;
@@ -445,6 +449,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.bishop_pair_bonus);
 
+    get_coefficient_single(coefficients, trace.tempo_bonus);
+
     return coefficients;
 }
 
@@ -463,6 +469,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, ISOLATED_PAWN_PENALTY);
 
     get_initial_parameter_single(parameters, BISHOP_PAIR_BONUS);
+
+    get_initial_parameter_single(parameters, TEMPO_BONUS);
 
     return parameters;
 }
@@ -502,6 +510,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "ISOLATED_PAWN_PENALTY");
 
     print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
+
+    print_single(ss, parameters_copy, index, "TEMPO_BONUS");
 
     std::cout << ss.str() << "\n";
 }

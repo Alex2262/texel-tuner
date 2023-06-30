@@ -68,6 +68,8 @@ struct Trace {
     short isolated_pawn_penalty[2]{};
 
     short bishop_pair_bonus[2]{};
+
+    short tempo_bonus[2]{};
 };
 
 namespace Altair {
