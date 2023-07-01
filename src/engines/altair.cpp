@@ -183,14 +183,23 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
 
 struct EvaluationInformation {
     int game_phase = 0;
+
+    BITBOARD pawns[2]{};
     BITBOARD pieces[2]{};
+    BITBOARD pawn_attacks[2]{};
 };
 
 void initialize_evaluation_information(Position& position, EvaluationInformation& evaluation_information) {
     evaluation_information.game_phase = 0;
 
+    evaluation_information.pawns[WHITE] = position.get_pieces(PAWN, WHITE);
+    evaluation_information.pawns[BLACK] = position.get_pieces(PAWN, BLACK);
+
     evaluation_information.pieces[WHITE] = position.get_pieces(WHITE);
     evaluation_information.pieces[BLACK] = position.get_pieces(BLACK);
+
+    evaluation_information.pawn_attacks[WHITE] = get_pawn_bitboard_attacks(evaluation_information.pawns[WHITE], WHITE);
+    evaluation_information.pawn_attacks[BLACK] = get_pawn_bitboard_attacks(evaluation_information.pawns[BLACK], BLACK);
 }
 
 Square get_white_relative_square(Square square, Color color) {
@@ -203,8 +212,8 @@ Square get_black_relative_square(Square square, Color color) {
 
 SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
-    BITBOARD our_pawns = position.get_pieces(PAWN, color);
-    BITBOARD opp_pawns = position.get_pieces(PAWN, ~color);
+    BITBOARD our_pawns = evaluation_information.pawns[color];
+    BITBOARD opp_pawns = evaluation_information.pawns[~color];
     BITBOARD phalanx_pawns = our_pawns & shift<WEST>(our_pawns);
 
     while (our_pawns) {
@@ -293,6 +302,30 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
         trace.piece_square_tables[piece_type][get_black_relative_square(square, color)][color]++;
 
         evaluation_information.game_phase += GAME_PHASE_SCORES[piece_type];
+
+        BITBOARD piece_attacks = get_piece_attacks(get_piece(piece_type, color), square, position.all_pieces);
+
+        if (piece_type != KING) {
+            BITBOARD mobility = piece_attacks &
+                    (~evaluation_information.pieces[color]) &
+                    (~evaluation_information.pawn_attacks[~color]);
+
+            score += static_cast<SCORE_TYPE>(popcount(mobility)) * MOBILITY_VALUES[piece_type];
+            trace.mobility_values[piece_type][color] += popcount(mobility);
+        }
+
+        if (piece_type == KING || piece_type == QUEEN || piece_type == ROOK) {
+            if (!(MASK_FILE[file_of(square)] & evaluation_information.pawns[color])) {
+                if (!(MASK_FILE[file_of(square)] & evaluation_information.pawns[~color])) {
+                    score += OPEN_FILE_VALUES[piece_type];
+                    trace.open_file_values[piece_type][color]++;
+                }
+                else {
+                    score += SEMI_OPEN_FILE_VALUES[piece_type];
+                    trace.semi_open_file_values[piece_type][color]++;
+                }
+            }
+        }
     }
 
     return score;
@@ -465,6 +498,11 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.tempo_bonus);
 
+    get_coefficient_array(coefficients, trace.mobility_values, 6);
+
+    get_coefficient_array(coefficients, trace.semi_open_file_values, 6);
+    get_coefficient_array(coefficients, trace.open_file_values, 6);
+
     return coefficients;
 }
 
@@ -485,6 +523,11 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, BISHOP_PAIR_BONUS);
 
     get_initial_parameter_single(parameters, TEMPO_BONUS);
+
+    get_initial_parameter_array(parameters, MOBILITY_VALUES, 6);
+
+    get_initial_parameter_array(parameters, SEMI_OPEN_FILE_VALUES, 6);
+    get_initial_parameter_array(parameters, OPEN_FILE_VALUES, 6);
 
     return parameters;
 }
@@ -526,6 +569,11 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
 
     print_single(ss, parameters_copy, index, "TEMPO_BONUS");
+
+    print_array(ss, parameters_copy, index, "MOBILITY_VALUES", 6);
+
+    print_array(ss, parameters_copy, index, "SEMI_OPEN_FILE_VALUES", 6);
+    print_array(ss, parameters_copy, index, "OPEN_FILE_VALUES", 6);
 
     std::cout << ss.str() << "\n";
 }

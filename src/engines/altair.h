@@ -70,6 +70,11 @@ struct Trace {
     short bishop_pair_bonus[2]{};
 
     short tempo_bonus[2]{};
+
+    short mobility_values[6][2]{};
+
+    short semi_open_file_values[6][2]{};
+    short open_file_values[6][2]{};
 };
 
 namespace Altair {
