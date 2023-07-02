@@ -315,14 +315,16 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
     return score;
 }
 
-
-SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
+template<PieceType piece_type>
+SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
     BITBOARD pieces = position.get_pieces(piece_type, color);
 
-    if (piece_type == BISHOP && popcount(pieces) >= 2) {
-        score += BISHOP_PAIR_BONUS;
-        trace.bishop_pair_bonus[color]++;
+    if constexpr (piece_type == BISHOP) {
+        if (popcount(pieces) >= 2) {
+            score += BISHOP_PAIR_BONUS;
+            trace.bishop_pair_bonus[color]++;
+        }
     }
 
     while (pieces) {
@@ -337,7 +339,7 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
 
         BITBOARD piece_attacks = get_piece_attacks(get_piece(piece_type, color), square, position.all_pieces);
 
-        if (piece_type != KING) {
+        if constexpr (piece_type != KING) {
             // MOBILITY
             BITBOARD mobility = piece_attacks &
                     (~evaluation_information.pieces[color]) &
@@ -359,7 +361,7 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
             evaluation_information.total_king_ring_attacks[color] += static_cast<int>(popcount(king_ring_attacks_1 | king_ring_attacks_2));
         }
 
-        if (piece_type == KING || piece_type == QUEEN || piece_type == ROOK) {
+        if constexpr (piece_type == KING || piece_type == QUEEN || piece_type == ROOK) {
             if (!(MASK_FILE[file_of(square)] & evaluation_information.pawns[color])) {
                 if (!(MASK_FILE[file_of(square)] & evaluation_information.pawns[~color])) {
                     score += OPEN_FILE_VALUES[piece_type];
@@ -391,10 +393,20 @@ SCORE_TYPE evaluate_pieces(Position& position, EvaluationInformation& evaluation
     score += evaluate_pawns(position, WHITE, evaluation_information, trace);
     score -= evaluate_pawns(position, BLACK, evaluation_information, trace);
 
-    for (int piece = 1; piece < 6; piece++) {
-        score += evaluate_piece(position, static_cast<PieceType>(piece), WHITE, evaluation_information, trace);
-        score -= evaluate_piece(position, static_cast<PieceType>(piece), BLACK, evaluation_information, trace);
-    }
+    score += evaluate_piece<KNIGHT>(position, WHITE, evaluation_information, trace);
+    score -= evaluate_piece<KNIGHT>(position, BLACK, evaluation_information, trace);
+
+    score += evaluate_piece<BISHOP>(position, WHITE, evaluation_information, trace);
+    score -= evaluate_piece<BISHOP>(position, BLACK, evaluation_information, trace);
+
+    score += evaluate_piece<ROOK>(position, WHITE, evaluation_information, trace);
+    score -= evaluate_piece<ROOK>(position, BLACK, evaluation_information, trace);
+
+    score += evaluate_piece<QUEEN>(position, WHITE, evaluation_information, trace);
+    score -= evaluate_piece<QUEEN>(position, BLACK, evaluation_information, trace);
+
+    score += evaluate_piece<KING>(position, WHITE, evaluation_information, trace);
+    score -= evaluate_piece<KING>(position, BLACK, evaluation_information, trace);
 
     return score;
 }
