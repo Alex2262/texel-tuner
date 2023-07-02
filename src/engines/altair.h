@@ -77,7 +77,35 @@ struct Trace {
     short open_file_values[6][2]{};
 
     short piece_threats[6][6][2]{};
+
+    short king_ring_attacks[2][6][2]{};
 };
+
+template<int n>
+struct KingRing {
+    constexpr KingRing() : masks() {
+        for (int rings = 1; rings <= n; rings++) {
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    masks[rings-1][i * 8 + j] = 0ULL;
+                    for (int y = i - rings; y <= i + rings; y++){
+                        for (int x = j - rings; x <= j + rings; x++) {
+                            if (y < 0 || y >= 8 || x < 0 || x >= 8) continue;
+                            if (y == i - rings || y == i + rings || x == j - rings || x == j + rings) {
+                                masks[rings-1][i * 8 + j] |= 1ULL << (y * 8 + x);
+                            }
+                        }
+                    }
+                    //std::cout << i * 8 + j << " " << masks[rings-1][i * 8 + j] << std::endl;
+                }
+            }
+        }
+    }
+
+    uint64_t masks[n][64]{};
+};
+
+constexpr KingRing king_ring_zone = KingRing<2>();
 
 namespace Altair {
     class AltairEval

@@ -33,5 +33,7 @@ constexpr SCORE_TYPE OPEN_FILE_VALUES[6] = {0};
 
 constexpr SCORE_TYPE PIECE_THREATS[6][6] = {0};
 
+constexpr SCORE_TYPE KING_RING_ATTACKS[2][6] = {0};
+
 
 #endif //TUNER_EVALUATION_CONSTANTS_H
