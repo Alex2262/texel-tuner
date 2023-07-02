@@ -79,6 +79,7 @@ struct Trace {
     short piece_threats[6][6][2]{};
 
     short king_ring_attacks[2][6][2]{};
+    short total_king_ring_attacks[30][2]{};
 };
 
 template<int n>

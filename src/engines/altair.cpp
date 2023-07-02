@@ -184,6 +184,8 @@ PLY_TYPE Position::set_fen(const std::string& fen_string) {
 struct EvaluationInformation {
     int game_phase = 0;
 
+    int total_king_ring_attacks[2]{};
+
     Square king_squares[2]{};
 
     BITBOARD pawns[2]{};
@@ -193,6 +195,9 @@ struct EvaluationInformation {
 
 void initialize_evaluation_information(Position& position, EvaluationInformation& evaluation_information) {
     evaluation_information.game_phase = 0;
+
+    evaluation_information.total_king_ring_attacks[WHITE] = 0;
+    evaluation_information.total_king_ring_attacks[BLACK] = 0;
 
     evaluation_information.king_squares[WHITE] = position.get_king_pos(WHITE);
     evaluation_information.king_squares[BLACK] = position.get_king_pos(BLACK);
@@ -233,6 +238,8 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
 
     trace.king_ring_attacks[0][PAWN][color] += popcount(king_ring_attacks_1);
     trace.king_ring_attacks[1][PAWN][color] += popcount(king_ring_attacks_2);
+
+    evaluation_information.total_king_ring_attacks[color] += static_cast<int>(popcount(king_ring_attacks_1 | king_ring_attacks_2));
 
     // MAIN PAWN EVAL
     while (our_pawns) {
@@ -348,6 +355,8 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
 
             trace.king_ring_attacks[0][piece_type][color] += popcount(king_ring_attacks_1);
             trace.king_ring_attacks[1][piece_type][color] += popcount(king_ring_attacks_2);
+
+            evaluation_information.total_king_ring_attacks[color] += static_cast<int>(popcount(king_ring_attacks_1 | king_ring_attacks_2));
         }
 
         if (piece_type == KING || piece_type == QUEEN || piece_type == ROOK) {
@@ -399,6 +408,15 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
     int game_phase = 0;
 
     score += evaluate_pieces(position, evaluation_information, trace);
+
+    evaluation_information.total_king_ring_attacks[WHITE] = std::min<int>(evaluation_information.total_king_ring_attacks[WHITE], 29);
+    evaluation_information.total_king_ring_attacks[BLACK] = std::min<int>(evaluation_information.total_king_ring_attacks[BLACK], 29);
+
+    score += TOTAL_KING_RING_ATTACKS[evaluation_information.total_king_ring_attacks[WHITE]];
+    score -= TOTAL_KING_RING_ATTACKS[evaluation_information.total_king_ring_attacks[BLACK]];
+
+    trace.total_king_ring_attacks[evaluation_information.total_king_ring_attacks[WHITE]][WHITE]++;
+    trace.total_king_ring_attacks[evaluation_information.total_king_ring_attacks[BLACK]][BLACK]++;
 
     score += (position.side * -2 + 1) * TEMPO_BONUS;
     trace.tempo_bonus[position.side]++;
@@ -551,6 +569,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.piece_threats, 6, 6);
 
     get_coefficient_array_2d(coefficients, trace.king_ring_attacks, 2, 6);
+    get_coefficient_array(coefficients, trace.total_king_ring_attacks, 30);
 
     return coefficients;
 }
@@ -581,6 +600,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, PIECE_THREATS, 6, 6);
 
     get_initial_parameter_array_2d(parameters, KING_RING_ATTACKS, 2, 6);
+    get_initial_parameter_array(parameters, TOTAL_KING_RING_ATTACKS, 30);
 
     return parameters;
 }
@@ -631,6 +651,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PIECE_THREATS", 6, 6);
 
     print_array_2d(ss, parameters_copy, index, "KING_RING_ATTACKS", 2, 6);
+    print_array(ss, parameters_copy, index, "TOTAL_KING_RING_ATTACKS", 30);
 
     std::cout << ss.str() << "\n";
 }
