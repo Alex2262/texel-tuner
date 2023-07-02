@@ -220,6 +220,23 @@ Square get_black_relative_square(Square square, Color color) {
     return static_cast<Square>(square ^ (~color * 56));
 }
 
+SCORE_TYPE evaluate_king_pawn(const Position& position, File file, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
+    SCORE_TYPE score = 0;
+
+    BITBOARD file_pawns = evaluation_information.pawns[color] & MASK_FILE[file];
+    Square square = file_pawns == 0 ? NO_SQUARE :
+            color == WHITE ? lsb(file_pawns) : msb(file_pawns);
+
+    Rank relative_rank = rank_of(get_white_relative_square(square, color));
+
+    int index = square == NO_SQUARE ? 4 : std::min(static_cast<int>(relative_rank) - 1, 3);
+
+    score += KING_PAWN_SHIELD[index][file];
+    trace.king_pawn_shield[index][file][color]++;
+
+    return score;
+}
+
 SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
     BITBOARD our_pawns = evaluation_information.pawns[color];
@@ -371,6 +388,21 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
                     score += SEMI_OPEN_FILE_VALUES[piece_type];
                     trace.semi_open_file_values[piece_type][color]++;
                 }
+            }
+        }
+
+        if constexpr (piece_type == KING) {
+            File file = file_of(square);
+            if (file <= 2) {  // Queen side: Files A, B, C  (0, 1, 2)
+                score += evaluate_king_pawn(position, 0, color, evaluation_information, trace);
+                score += evaluate_king_pawn(position, 1, color, evaluation_information, trace);
+                score += evaluate_king_pawn(position, 2, color, evaluation_information, trace);
+            }
+
+            else if (file >= 5) {  // King side: Files F, G, H  (5, 6, 7)
+                score += evaluate_king_pawn(position, 5, color, evaluation_information, trace);
+                score += evaluate_king_pawn(position, 6, color, evaluation_information, trace);
+                score += evaluate_king_pawn(position, 7, color, evaluation_information, trace);
             }
         }
 
@@ -583,6 +615,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.king_ring_attacks, 2, 6);
     get_coefficient_array(coefficients, trace.total_king_ring_attacks, 30);
 
+    get_coefficient_array_2d(coefficients, trace.king_pawn_shield, 5, 8);
+
     return coefficients;
 }
 
@@ -613,6 +647,8 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_array_2d(parameters, KING_RING_ATTACKS, 2, 6);
     get_initial_parameter_array(parameters, TOTAL_KING_RING_ATTACKS, 30);
+
+    get_initial_parameter_array_2d(parameters, KING_PAWN_SHIELD, 5, 8);
 
     return parameters;
 }
@@ -664,6 +700,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array_2d(ss, parameters_copy, index, "KING_RING_ATTACKS", 2, 6);
     print_array(ss, parameters_copy, index, "TOTAL_KING_RING_ATTACKS", 30);
+
+    print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD", 5, 8);
 
     std::cout << ss.str() << "\n";
 }

@@ -80,6 +80,8 @@ struct Trace {
 
     short king_ring_attacks[2][6][2]{};
     short total_king_ring_attacks[30][2]{};
+
+    short king_pawn_shield[5][8][2]{};
 };
 
 template<int n>
