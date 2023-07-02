@@ -75,6 +75,8 @@ struct Trace {
 
     short semi_open_file_values[6][2]{};
     short open_file_values[6][2]{};
+
+    short piece_threats[6][6][2]{};
 };
 
 namespace Altair {

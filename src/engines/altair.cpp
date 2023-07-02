@@ -215,6 +215,7 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
     BITBOARD our_pawns = evaluation_information.pawns[color];
     BITBOARD opp_pawns = evaluation_information.pawns[~color];
     BITBOARD phalanx_pawns = our_pawns & shift<WEST>(our_pawns);
+    BITBOARD pawn_threats = evaluation_information.pawn_attacks[color] & evaluation_information.pieces[~color];
 
     while (our_pawns) {
         Square square = poplsb(our_pawns);
@@ -280,6 +281,12 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
         trace.phalanx_pawn_bonuses[relative_rank][color]++;
     }
 
+    while (pawn_threats) {
+        Square square = poplsb(pawn_threats);
+        score += PIECE_THREATS[PAWN][get_piece_type(position.board[square], ~color)];
+        trace.piece_threats[PAWN][get_piece_type(position.board[square], ~color)][color]++;
+    }
+
     return score;
 }
 
@@ -325,6 +332,15 @@ SCORE_TYPE evaluate_piece(Position& position, PieceType piece_type, Color color,
                     trace.semi_open_file_values[piece_type][color]++;
                 }
             }
+        }
+
+        for (int opp_piece = 0; opp_piece < 6; opp_piece++) {
+            score += static_cast<SCORE_TYPE>(popcount(
+                    piece_attacks & position.get_pieces(static_cast<PieceType>(opp_piece), ~color))) *
+                    PIECE_THREATS[piece_type][opp_piece];
+
+            trace.piece_threats[piece_type][opp_piece][color] += popcount(
+                    piece_attacks & position.get_pieces(static_cast<PieceType>(opp_piece), ~color));
         }
     }
 
@@ -503,6 +519,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.semi_open_file_values, 6);
     get_coefficient_array(coefficients, trace.open_file_values, 6);
 
+    get_coefficient_array_2d(coefficients, trace.piece_threats, 6, 6);
+
     return coefficients;
 }
 
@@ -528,6 +546,8 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_array(parameters, SEMI_OPEN_FILE_VALUES, 6);
     get_initial_parameter_array(parameters, OPEN_FILE_VALUES, 6);
+
+    get_initial_parameter_array_2d(parameters, PIECE_THREATS, 6, 6);
 
     return parameters;
 }
@@ -574,6 +594,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array(ss, parameters_copy, index, "SEMI_OPEN_FILE_VALUES", 6);
     print_array(ss, parameters_copy, index, "OPEN_FILE_VALUES", 6);
+
+    print_array_2d(ss, parameters_copy, index, "PIECE_THREATS", 6, 6);
 
     std::cout << ss.str() << "\n";
 }
