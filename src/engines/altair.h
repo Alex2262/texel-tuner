@@ -82,6 +82,7 @@ struct Trace {
     short total_king_ring_attacks[30][2]{};
 
     short king_pawn_shield[5][8][2]{};
+    short king_pawn_storm[5][8][2]{};
 };
 
 template<int n>
