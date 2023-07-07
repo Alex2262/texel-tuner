@@ -242,9 +242,8 @@ SCORE_TYPE evaluate_king_pawn(const Position& position, File file, Color color, 
 
     relative_rank = rank_of(get_white_relative_square(square, color));
 
-    // Uses the relative ranks 3-7 (ranks 6 & 7 are combined into one index)
-    index = square == NO_SQUARE ? 4 : std::min(static_cast<int>(relative_rank) - 2, 3);
-    if (index < 0) return score;
+    // Uses the relative ranks 2-7 (ranks 6 & 7 are combined into one index)
+    index = square == NO_SQUARE ? 5 : std::min(static_cast<int>(relative_rank) - 1, 4);
 
     score += KING_PAWN_STORM[index][file];
     trace.king_pawn_storm[index][file][color]++;
@@ -631,7 +630,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.total_king_ring_attacks, 30);
 
     get_coefficient_array_2d(coefficients, trace.king_pawn_shield, 5, 8);
-    get_coefficient_array_2d(coefficients, trace.king_pawn_storm, 5, 8);
+    get_coefficient_array_2d(coefficients, trace.king_pawn_storm, 6, 8);
 
     return coefficients;
 }
@@ -665,7 +664,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array(parameters, TOTAL_KING_RING_ATTACKS, 30);
 
     get_initial_parameter_array_2d(parameters, KING_PAWN_SHIELD, 5, 8);
-    get_initial_parameter_array_2d(parameters, KING_PAWN_STORM, 5, 8);
+    get_initial_parameter_array_2d(parameters, KING_PAWN_STORM, 6, 8);
 
     return parameters;
 }
@@ -719,7 +718,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "TOTAL_KING_RING_ATTACKS", 30);
 
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD", 5, 8);
-    print_array_2d(ss, parameters_copy, index, "KING_PAWN_STORM", 5, 8);
+    print_array_2d(ss, parameters_copy, index, "KING_PAWN_STORM", 6, 8);
 
     std::cout << ss.str() << "\n";
 }
