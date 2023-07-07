@@ -386,14 +386,6 @@ constexpr SCORE_TYPE ROOK_MOBILITY_END[15]{};
 constexpr SCORE_TYPE QUEEN_MOBILITY_MID[28]{};
 constexpr SCORE_TYPE QUEEN_MOBILITY_END[28]{};
 
-constexpr double OWN_KING_DISTANCE_COEFFICIENTS_MID[6] = {      0,     -5.8,      0,      0,      0,      0};
-
-constexpr double OWN_KING_DISTANCE_COEFFICIENTS_END[6] = {      0,      0.827,      0,      0,      0,      0};
-
-constexpr double OPP_KING_DISTANCE_COEFFICIENTS_MID[6] = {      0,     -1.02,      -0.165,     -4.35,    -9.62,      0};
-
-constexpr double OPP_KING_DISTANCE_COEFFICIENTS_END[6] = {      0,     -1.07,      1.79,      4.06,      6.29,      0};
-
 constexpr SCORE_TYPE KING_PAWN_SHIELD_OWN_PENALTIES_MID[3][8] = {
         {  -1,  -1, -33,   0,   0, -14, -13,   4},
         {   0, -42, -34,   0,   0, -20, -21,   1},
@@ -483,9 +475,6 @@ struct Trace {
     short bishop_mobility[14][2]{};
     short rook_mobility[15][2]{};
     short queen_mobility[28][2]{};
-
-    short own_king_tropism[6][2]{};
-    short opp_king_tropism[6][2]{};
 
     short own_king_pawn_shield[3][8][2]{};
     short opp_king_pawn_shield[3][8][2]{};

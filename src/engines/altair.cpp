@@ -621,18 +621,6 @@ void evaluate_knight(const Position& position, Score_Struct& scores, SQUARE_TYPE
         }
     }
 
-    // Knights are good protectors for the king
-    SCORE_TYPE distance_to_our_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(!is_white)]]);
-    scores.mid += static_cast<SCORE_TYPE>(OWN_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_our_king);
-    scores.end += static_cast<SCORE_TYPE>(OWN_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_our_king);
-    trace.own_king_tropism[WHITE_KNIGHT][!is_white] += distance_to_our_king;
-
-    // Knights are also very good at attacking the opponents king
-    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_KNIGHT] * distance_to_opp_king);
-    scores.end += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_KNIGHT] * distance_to_opp_king);
-    trace.opp_king_tropism[WHITE_KNIGHT][!is_white] += distance_to_opp_king;
-
     scores.mid += KNIGHT_MOBILITY_MID[mobility];
     scores.end += KNIGHT_MOBILITY_END[mobility];
     trace.knight_mobility[mobility][!is_white]++;
@@ -746,11 +734,6 @@ void evaluate_bishop(const Position& position, Score_Struct& scores, SQUARE_TYPE
             }
         }
     }
-
-    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_BISHOP] * distance_to_opp_king);
-    scores.end += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_BISHOP] * distance_to_opp_king);
-    trace.opp_king_tropism[WHITE_BISHOP][!is_white] += distance_to_opp_king;
 
     scores.mid += BISHOP_MOBILITY_MID[mobility];
     scores.end += BISHOP_MOBILITY_END[mobility];
@@ -894,11 +877,6 @@ void evaluate_rook(const Position& position, Score_Struct& scores, SQUARE_TYPE p
         }
     }
 
-    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_ROOK] * distance_to_opp_king);
-    scores.end += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_ROOK] * distance_to_opp_king);
-    trace.opp_king_tropism[WHITE_ROOK][!is_white] += distance_to_opp_king;
-
     scores.mid += ROOK_MOBILITY_MID[mobility];
     scores.end += ROOK_MOBILITY_END[mobility];
     trace.rook_mobility[mobility][!is_white]++;
@@ -1039,11 +1017,6 @@ void evaluate_queen(const Position& position, Score_Struct& scores, SQUARE_TYPE 
             }
         }
     }
-
-    SCORE_TYPE distance_to_opp_king = get_distance(i, MAILBOX_TO_STANDARD[position.king_positions[(is_white)]]);
-    scores.mid += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_MID[WHITE_QUEEN] * distance_to_opp_king);
-    scores.end += static_cast<SCORE_TYPE>(OPP_KING_DISTANCE_COEFFICIENTS_END[WHITE_QUEEN] * distance_to_opp_king);
-    trace.opp_king_tropism[WHITE_QUEEN][!is_white] += distance_to_opp_king;
 
     scores.mid += QUEEN_MOBILITY_MID[mobility];
     scores.end += QUEEN_MOBILITY_END[mobility];
@@ -1485,9 +1458,6 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.rook_mobility, 15);
     get_coefficient_array(coefficients, trace.queen_mobility, 28);
 
-    get_coefficient_array(coefficients, trace.own_king_tropism, 6);
-    get_coefficient_array(coefficients, trace.opp_king_tropism, 6);
-
     get_coefficient_array_2d(coefficients, trace.own_king_pawn_shield, 3, 8);
     get_coefficient_array_2d(coefficients, trace.opp_king_pawn_shield, 3, 8);
 
@@ -1549,9 +1519,6 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_double(parameters, BISHOP_MOBILITY_MID, BISHOP_MOBILITY_END, 14);
     get_initial_parameter_array_double(parameters, ROOK_MOBILITY_MID, ROOK_MOBILITY_END, 15);
     get_initial_parameter_array_double(parameters, QUEEN_MOBILITY_MID, QUEEN_MOBILITY_END, 28);
-
-    get_initial_parameter_array_double(parameters, OWN_KING_DISTANCE_COEFFICIENTS_MID, OWN_KING_DISTANCE_COEFFICIENTS_END, 6);
-    get_initial_parameter_array_double(parameters, OPP_KING_DISTANCE_COEFFICIENTS_MID, OPP_KING_DISTANCE_COEFFICIENTS_END, 6);
 
     get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OWN_PENALTIES_MID, KING_PAWN_SHIELD_OWN_PENALTIES_END, 3, 8);
     get_initial_parameter_array_2d_double(parameters, KING_PAWN_SHIELD_OPP_PENALTIES_MID, KING_PAWN_SHIELD_OPP_PENALTIES_END, 3, 8);
@@ -1633,9 +1600,6 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "BISHOP_MOBILITY", 14, false);
     print_array(ss, parameters_copy, index, "ROOK_MOBILITY", 15, false);
     print_array(ss, parameters_copy, index, "QUEEN_MOBILITY", 28, false);
-
-    print_array(ss, parameters_copy, index, "OWN_KING_DISTANCE_COEFFICIENTS", 6, true);
-    print_array(ss, parameters_copy, index, "OPP_KING_DISTANCE_COEFFICIENTS", 6, true);
 
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OWN_PENALTIES", 3, 8, false);
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD_OPP_PENALTIES", 3, 8, false);
