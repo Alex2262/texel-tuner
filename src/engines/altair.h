@@ -12,6 +12,11 @@
 #include "types.h"
 #include "bitboard.h"
 
+inline int get_manhattan_distance(Square square_1, Square square_2) {
+    return abs(static_cast<int>(rank_of(square_1)) - static_cast<int>(rank_of(square_2))) +
+           abs(static_cast<int>(file_of(square_1)) - static_cast<int>(file_of(square_2)));
+}
+
 class Position {
 
 public:
@@ -83,6 +88,8 @@ struct Trace {
 
     short king_pawn_shield[5][8][2]{};
     short king_pawn_storm[6][8][2]{};
+
+    short opp_king_tropism[6][2]{};
 };
 
 template<int n>
