@@ -9,6 +9,12 @@
 #include "types.h"
 #include "../base.h"
 
+// Canonical piece values used for endgame drawishness calculations.
+constexpr SCORE_TYPE CANONICAL_PIECE_VALUES[6] = {100, 310,340, 500, 900, 0};
+
+constexpr SCORE_TYPE MAX_MINOR_PIECE_VALUE = CANONICAL_PIECE_VALUES[BISHOP];
+constexpr SCORE_TYPE MIN_MINOR_PIECE_VALUE = CANONICAL_PIECE_VALUES[KNIGHT];
+
 constexpr SCORE_TYPE PIECE_VALUES[6] = {0};
 
 constexpr SCORE_TYPE PIECE_SQUARE_TABLES[6][64] = {0};
