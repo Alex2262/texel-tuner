@@ -325,6 +325,16 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
                 trace.passed_pawn_blockers_2[get_piece_type(position.board[blocker_square_2], ~color)][rank_of(
                         get_white_relative_square(blocker_square_2, color))][color]++;
             }
+
+            // Square of the Pawn
+            auto promotion_square = get_black_relative_square(static_cast<Square>(square % 8), color);
+            int our_distance = get_chebyshev_distance(square, promotion_square);
+            int king_distance = get_chebyshev_distance(evaluation_information.king_squares[~color], promotion_square);
+
+            if (std::min(our_distance, 5) < king_distance - (position.side != color)) {
+                score += SQUARE_OF_THE_PAWN;
+                trace.square_of_the_pawn[color]++;
+            }
         }
 
         // ISOLATED PAWN
@@ -812,6 +822,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.doubled_pawn_penalty);
 
+    get_coefficient_single(coefficients, trace.square_of_the_pawn);
+
     return coefficients;
 }
 
@@ -849,6 +861,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array(parameters, OPP_KING_TROPISM, 6);
 
     get_initial_parameter_single(parameters, DOUBLED_PAWN_PENALTY);
+
+    get_initial_parameter_single(parameters, SQUARE_OF_THE_PAWN);
 
     return parameters;
 }
@@ -907,6 +921,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "OPP_KING_TROPISM", 6);
 
     print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
+
+    print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN");
 
     std::cout << ss.str() << "\n";
 }
