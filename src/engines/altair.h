@@ -12,7 +12,7 @@
 #include "types.h"
 #include "bitboard.h"
 
-bool same_color (Square square_1, Square square_2) {
+inline bool same_color (Square square_1, Square square_2) {
     return (( 9 * (square_1 ^ square_2)) & 8) == 0;
 }
 
@@ -94,6 +94,8 @@ struct Trace {
     short king_pawn_storm[6][8][2]{};
 
     short opp_king_tropism[6][2]{};
+
+    short doubled_pawn_penalty[2]{};
 };
 
 template<int n>

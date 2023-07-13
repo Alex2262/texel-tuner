@@ -64,7 +64,7 @@ constexpr inline int32_t anti_diagonal_of(Square s) {
 }
 
 template<Direction D>
-constexpr BITBOARD shift(BITBOARD b) {
+constexpr inline BITBOARD shift(BITBOARD b) {
     if constexpr (D == NORTH) return b << 8;
     else if constexpr (D == SOUTH) return b >> 8;
     else if constexpr (D == NORTH + NORTH) return b << 16;
@@ -78,8 +78,22 @@ constexpr BITBOARD shift(BITBOARD b) {
     return 0;
 }
 
+constexpr inline BITBOARD shift(Direction D, BITBOARD b) {
+    if (D == NORTH) return b << 8;
+    else if (D == SOUTH) return b >> 8;
+    else if (D == NORTH + NORTH) return b << 16;
+    else if (D == SOUTH + SOUTH) return b >> 16;
+    else if (D == EAST) return (b & ~MASK_FILE[FILE_H]) << 1;
+    else if (D == WEST) return (b & ~MASK_FILE[FILE_A]) >> 1;
+    else if (D == NORTH_EAST) return (b & ~MASK_FILE[FILE_H]) << 9;
+    else if (D == NORTH_WEST) return (b & ~MASK_FILE[FILE_A]) << 7;
+    else if (D == SOUTH_EAST) return (b & ~MASK_FILE[FILE_H]) >> 7;
+    else if (D == SOUTH_WEST) return (b & ~MASK_FILE[FILE_A]) >> 9;
+    return 0;
+}
+
 template<Direction D>
-constexpr BITBOARD fill(BITBOARD b) {
+constexpr inline BITBOARD fill(BITBOARD b) {
     if constexpr (D == NORTH) {
         b |= (b << 8);
         b |= (b << 16);
@@ -91,7 +105,7 @@ constexpr BITBOARD fill(BITBOARD b) {
     }
 }
 
-constexpr Square operator+(Square s, Direction d) {
+constexpr inline Square operator+(Square s, Direction d) {
     return Square(static_cast<int32_t>(s) + static_cast<int32_t>(d));
 }
 

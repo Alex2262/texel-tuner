@@ -256,11 +256,19 @@ SCORE_TYPE evaluate_king_pawn(const Position& position, File file, Color color, 
 }
 
 SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
+
+    Direction up = color == WHITE ? NORTH : SOUTH;
+
     SCORE_TYPE score = 0;
     BITBOARD our_pawns = evaluation_information.pawns[color];
     BITBOARD opp_pawns = evaluation_information.pawns[~color];
     BITBOARD phalanx_pawns = our_pawns & shift<WEST>(our_pawns);
     BITBOARD pawn_threats = evaluation_information.pawn_attacks[color] & evaluation_information.pieces[~color];
+
+    // Doubled Pawns
+    BITBOARD doubled_pawns = our_pawns & shift(up, our_pawns);
+    score += static_cast<SCORE_TYPE>(popcount(doubled_pawns)) * DOUBLED_PAWN_PENALTY;
+    trace.doubled_pawn_penalty[color] += popcount(doubled_pawns);
 
     // KING RING ATTACKS
     BITBOARD king_ring_attacks_1 = evaluation_information.pawn_attacks[color] &
@@ -293,16 +301,9 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
         // evaluation_information.game_phase += GAME_PHASE_SCORES[PAWN];
         evaluation_information.piece_counts[color][PAWN]++;
 
-        Direction up = color == WHITE ? NORTH : SOUTH;
-        Direction down = color == WHITE ? SOUTH : NORTH;
-
         // PASSED PAWN
         if (!(passed_pawn_masks[color][square] & opp_pawns)) {
-            int protectors = 0;
-            if (!(bb_square & MASK_FILE[FILE_A]) &&
-                position.board[square + down + WEST] == get_piece(PAWN, color)) protectors++;
-            if (!(bb_square & MASK_FILE[FILE_H]) &&
-                position.board[square + down + EAST] == get_piece(PAWN, color)) protectors++;
+            auto protectors = popcount(evaluation_information.pawns[color] & get_piece_attacks(get_piece(PAWN, ~color), square, 0));
 
             score += PASSED_PAWN_BONUSES[protectors][relative_rank];
             trace.passed_pawn_bonuses[protectors][relative_rank][color]++;
@@ -809,6 +810,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array(coefficients, trace.opp_king_tropism, 6);
 
+    get_coefficient_single(coefficients, trace.doubled_pawn_penalty);
+
     return coefficients;
 }
 
@@ -844,6 +847,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, KING_PAWN_STORM, 6, 8);
 
     get_initial_parameter_array(parameters, OPP_KING_TROPISM, 6);
+
+    get_initial_parameter_single(parameters, DOUBLED_PAWN_PENALTY);
 
     return parameters;
 }
@@ -900,6 +905,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_STORM", 6, 8);
 
     print_array(ss, parameters_copy, index, "OPP_KING_TROPISM", 6);
+
+    print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
 
     std::cout << ss.str() << "\n";
 }
