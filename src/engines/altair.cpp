@@ -337,9 +337,17 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
             }
         }
 
+        // BACKWARDS PAWN (We can use the passed pawn mask for the opposite color including the two squares next to it)
+        BITBOARD backwards_pawn_mask = passed_pawn_masks[~color][square]
+                                       | (shift<WEST>(bb_square)) | (shift<EAST>(bb_square));
+        if (!(backwards_pawn_mask & evaluation_information.pawns[color])) {
+            score += BACKWARDS_PAWN_PENALTY;
+            trace.backwards_pawn_penalty[color]++;
+        }
+
         // ISOLATED PAWN
         BITBOARD isolated_pawn_mask = fill<SOUTH>(fill<NORTH>(shift<WEST>(bb_square) | shift<EAST>(bb_square)));
-        if (!(isolated_pawn_mask & our_pawns)) {
+        if (!(isolated_pawn_mask & evaluation_information.pawns[color])) {
             score += ISOLATED_PAWN_PENALTY;
             trace.isolated_pawn_penalty[color]++;
         }
@@ -824,6 +832,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.square_of_the_pawn);
 
+    get_coefficient_single(coefficients, trace.backwards_pawn_penalty);
+
     return coefficients;
 }
 
@@ -863,6 +873,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, DOUBLED_PAWN_PENALTY);
 
     get_initial_parameter_single(parameters, SQUARE_OF_THE_PAWN);
+
+    get_initial_parameter_single(parameters, BACKWARDS_PAWN_PENALTY);
 
     return parameters;
 }
@@ -923,6 +935,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
 
     print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN");
+
+    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
 
     std::cout << ss.str() << "\n";
 }

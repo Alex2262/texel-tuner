@@ -103,6 +103,8 @@ struct Trace {
     short doubled_pawn_penalty[2]{};
 
     short square_of_the_pawn[2]{};
+
+    short backwards_pawn_penalty[2]{};
 };
 
 template<int n>
