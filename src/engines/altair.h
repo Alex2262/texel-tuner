@@ -93,7 +93,7 @@ struct Trace {
     short piece_threats[6][6][2]{};
 
     short king_ring_attacks[2][6][2]{};
-    short total_king_ring_attacks[30][2]{};
+    short total_king_ring_attacks[50][2]{};
 
     short king_pawn_shield[5][8][2]{};
     short king_pawn_storm[6][8][2]{};

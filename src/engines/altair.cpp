@@ -282,7 +282,8 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
     trace.king_ring_attacks[0][PAWN][color] += popcount(king_ring_attacks_1);
     trace.king_ring_attacks[1][PAWN][color] += popcount(king_ring_attacks_2);
 
-    evaluation_information.total_king_ring_attacks[color] += static_cast<int>(popcount(king_ring_attacks_1 | king_ring_attacks_2));
+    evaluation_information.total_king_ring_attacks[color] +=
+            static_cast<int>(2 * popcount(king_ring_attacks_1) + popcount(king_ring_attacks_2));
 
     // MAIN PAWN EVAL
     while (our_pawns) {
@@ -415,7 +416,8 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
             trace.king_ring_attacks[0][piece_type][color] += popcount(king_ring_attacks_1);
             trace.king_ring_attacks[1][piece_type][color] += popcount(king_ring_attacks_2);
 
-            evaluation_information.total_king_ring_attacks[color] += static_cast<int>(popcount(king_ring_attacks_1 | king_ring_attacks_2));
+            evaluation_information.total_king_ring_attacks[color] +=
+                    static_cast<int>(2 * popcount(king_ring_attacks_1) + popcount(king_ring_attacks_2));
 
             // OPPONENT KING TROPISM
             int distance_to_opp_king = get_manhattan_distance(square, evaluation_information.king_squares[~color]);
@@ -705,8 +707,8 @@ SCORE_TYPE evaluate(Position& position, Trace& trace) {
 
     score += evaluate_pieces(position, evaluation_information, trace);
 
-    evaluation_information.total_king_ring_attacks[WHITE] = std::min<int>(evaluation_information.total_king_ring_attacks[WHITE], 29);
-    evaluation_information.total_king_ring_attacks[BLACK] = std::min<int>(evaluation_information.total_king_ring_attacks[BLACK], 29);
+    evaluation_information.total_king_ring_attacks[WHITE] = std::min<int>(evaluation_information.total_king_ring_attacks[WHITE], 39);
+    evaluation_information.total_king_ring_attacks[BLACK] = std::min<int>(evaluation_information.total_king_ring_attacks[BLACK], 39);
 
     score += TOTAL_KING_RING_ATTACKS[evaluation_information.total_king_ring_attacks[WHITE]];
     score -= TOTAL_KING_RING_ATTACKS[evaluation_information.total_king_ring_attacks[BLACK]];
@@ -870,7 +872,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.piece_threats, 6, 6);
 
     get_coefficient_array_2d(coefficients, trace.king_ring_attacks, 2, 6);
-    get_coefficient_array(coefficients, trace.total_king_ring_attacks, 30);
+    get_coefficient_array(coefficients, trace.total_king_ring_attacks, 40);
 
     get_coefficient_array_2d(coefficients, trace.king_pawn_shield, 5, 8);
     get_coefficient_array_2d(coefficients, trace.king_pawn_storm, 6, 8);
@@ -912,7 +914,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, PIECE_THREATS, 6, 6);
 
     get_initial_parameter_array_2d(parameters, KING_RING_ATTACKS, 2, 6);
-    get_initial_parameter_array(parameters, TOTAL_KING_RING_ATTACKS, 30);
+    get_initial_parameter_array(parameters, TOTAL_KING_RING_ATTACKS, 40);
 
     get_initial_parameter_array_2d(parameters, KING_PAWN_SHIELD, 5, 8);
     get_initial_parameter_array_2d(parameters, KING_PAWN_STORM, 6, 8);
@@ -974,7 +976,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "PIECE_THREATS", 6, 6);
 
     print_array_2d(ss, parameters_copy, index, "KING_RING_ATTACKS", 2, 6);
-    print_array(ss, parameters_copy, index, "TOTAL_KING_RING_ATTACKS", 30);
+    print_array(ss, parameters_copy, index, "TOTAL_KING_RING_ATTACKS", 40);
 
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_SHIELD", 5, 8);
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_STORM", 6, 8);
