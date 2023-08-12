@@ -252,7 +252,6 @@ Square get_black_relative_square(Square square, Color color) {
 SCORE_TYPE evaluate_king_pawn(const Position& position, File file, Color color, EvaluationInformation& evaluation_information, Trace& trace) {
     SCORE_TYPE score = 0;
 
-
     BITBOARD our_file_pawns = evaluation_information.pawns[color] & MASK_FILE[file];
     Square square = our_file_pawns == 0 ? NO_SQUARE :
             color == WHITE ? lsb(our_file_pawns) : msb(our_file_pawns);
