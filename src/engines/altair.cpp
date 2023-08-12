@@ -195,6 +195,8 @@ struct EvaluationInformation {
     BITBOARD pawns[2]{};
     BITBOARD pieces[2]{};
     BITBOARD pawn_attacks[2]{};
+
+    BITBOARD piece_relative_occupancies[2][6]{};
 };
 
 void initialize_evaluation_information(Position& position, EvaluationInformation& evaluation_information) {
@@ -214,6 +216,29 @@ void initialize_evaluation_information(Position& position, EvaluationInformation
 
     evaluation_information.pawn_attacks[WHITE] = get_pawn_bitboard_attacks(evaluation_information.pawns[WHITE], WHITE);
     evaluation_information.pawn_attacks[BLACK] = get_pawn_bitboard_attacks(evaluation_information.pawns[BLACK], BLACK);
+
+    for (auto & color_occupancy : evaluation_information.piece_relative_occupancies) {
+        for (BITBOARD& piece_relative_occupancy : color_occupancy) {
+            piece_relative_occupancy = position.all_pieces;
+        }
+    }
+
+    BITBOARD white_diagonal_sliders = position.get_pieces(BISHOP, WHITE) | position.get_pieces(QUEEN, WHITE);
+    BITBOARD black_diagonal_sliders = position.get_pieces(BISHOP, BLACK) | position.get_pieces(QUEEN, BLACK);
+
+    BITBOARD white_orthogonal_sliders = position.get_pieces(ROOK, WHITE) | position.get_pieces(QUEEN, WHITE);
+    BITBOARD black_orthogonal_sliders = position.get_pieces(ROOK, BLACK) | position.get_pieces(QUEEN, BLACK);
+
+    evaluation_information.piece_relative_occupancies[WHITE][BISHOP] ^= white_diagonal_sliders;
+    evaluation_information.piece_relative_occupancies[BLACK][BISHOP] ^= black_diagonal_sliders;
+
+    evaluation_information.piece_relative_occupancies[WHITE][ROOK] ^= white_orthogonal_sliders;
+    evaluation_information.piece_relative_occupancies[BLACK][ROOK] ^= black_orthogonal_sliders;
+
+    evaluation_information.piece_relative_occupancies[WHITE][QUEEN] ^=
+            white_diagonal_sliders | white_orthogonal_sliders;
+    evaluation_information.piece_relative_occupancies[BLACK][QUEEN] ^=
+            black_diagonal_sliders | black_orthogonal_sliders;
 }
 
 Square get_white_relative_square(Square square, Color color) {
@@ -395,7 +420,8 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
         evaluation_information.game_phase += GAME_PHASE_SCORES[piece_type];
         evaluation_information.piece_counts[color][piece_type]++;
 
-        BITBOARD piece_attacks = get_piece_attacks(get_piece(piece_type, color), square, position.all_pieces);
+        BITBOARD piece_attacks = get_piece_attacks(get_piece(piece_type, color), square,
+                                                   evaluation_information.piece_relative_occupancies[color][piece_type]);
 
         if constexpr (piece_type != KING) {
             // MOBILITY
