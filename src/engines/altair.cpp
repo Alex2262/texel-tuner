@@ -957,21 +957,6 @@ parameters_t AltairEval::get_initial_parameters() {
 }
 
 
-EvalResult AltairEval::get_fen_eval_result(const string &fen) {
-    Position position;
-    position.set_fen(fen);
-
-    Trace trace{};
-    trace.score = evaluate(position, trace);
-
-    EvalResult result;
-    result.coefficients = get_coefficients(trace);
-    result.score = trace.score;
-
-    return result;
-}
-
-
 void AltairEval::print_parameters(const parameters_t &parameters) {
     parameters_t parameters_copy = parameters;
     rebalance_piece_square_tables(parameters_copy, 0, 6);
@@ -1016,4 +1001,89 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
 
     std::cout << ss.str() << "\n";
+}
+
+
+Position get_position_from_external(const Chess::Board& board)
+{
+    Position position;
+
+    position.side = WHITE;
+
+    position.pieces[WHITE_PAWN]   = board.pieces(Chess::PieceType::PAWN, Chess::Color::WHITE);
+    position.pieces[WHITE_KNIGHT] = board.pieces(Chess::PieceType::KNIGHT, Chess::Color::WHITE);
+    position.pieces[WHITE_BISHOP] = board.pieces(Chess::PieceType::BISHOP, Chess::Color::WHITE);
+    position.pieces[WHITE_ROOK]   = board.pieces(Chess::PieceType::ROOK, Chess::Color::WHITE);
+    position.pieces[WHITE_QUEEN]  = board.pieces(Chess::PieceType::QUEEN, Chess::Color::WHITE);
+    position.pieces[WHITE_KING]   = board.pieces(Chess::PieceType::KING, Chess::Color::WHITE);
+
+    position.pieces[BLACK_PAWN]   = board.pieces(Chess::PieceType::PAWN, Chess::Color::BLACK);
+    position.pieces[BLACK_KNIGHT] = board.pieces(Chess::PieceType::KNIGHT, Chess::Color::BLACK);
+    position.pieces[BLACK_BISHOP] = board.pieces(Chess::PieceType::BISHOP, Chess::Color::BLACK);
+    position.pieces[BLACK_ROOK]   = board.pieces(Chess::PieceType::ROOK, Chess::Color::BLACK);
+    position.pieces[BLACK_QUEEN]  = board.pieces(Chess::PieceType::QUEEN, Chess::Color::BLACK);
+    position.pieces[BLACK_KING]   = board.pieces(Chess::PieceType::KING, Chess::Color::BLACK);
+
+    for (auto & i : position.board) {
+        i = EMPTY;
+    }
+
+    for (int i = 0; i < 12; i++) {
+        auto piece = static_cast<Piece>(i);
+        BITBOARD pieces = position.pieces[piece];
+
+        while (pieces) {
+            Square square = poplsb(pieces);
+            position.board[square] = piece;
+        }
+    }
+
+    position.ep_square = static_cast<Square>(static_cast<int>(board.enpassantSquare()));
+    if(position.ep_square == 64)
+    {
+        position.ep_square = NO_SQUARE;
+    }
+
+    position.castle_ability_bits = 0;
+
+    position.castle_ability_bits |= 1 * board.castlingRights().hasCastlingRight(Chess::Color::WHITE, Chess::CastleSide::KING_SIDE);
+    position.castle_ability_bits |= 2 * board.castlingRights().hasCastlingRight(Chess::Color::BLACK, Chess::CastleSide::QUEEN_SIDE);
+    position.castle_ability_bits |= 4 * board.castlingRights().hasCastlingRight(Chess::Color::WHITE, Chess::CastleSide::KING_SIDE);
+    position.castle_ability_bits |= 8 * board.castlingRights().hasCastlingRight(Chess::Color::BLACK, Chess::CastleSide::QUEEN_SIDE);
+
+    position.our_pieces = position.get_our_pieces();
+    position.opp_pieces = position.get_opp_pieces();
+    position.all_pieces = position.get_all_pieces();
+    position.empty_squares = position.get_empty_squares();
+
+    return position;
+}
+
+EvalResult AltairEval::get_fen_eval_result(const string &fen) {
+    Position position;
+    position.set_fen(fen);
+
+    Trace trace{};
+    trace.score = evaluate(position, trace);
+
+    EvalResult result;
+    result.coefficients = get_coefficients(trace);
+    result.score = trace.score;
+
+    return result;
+}
+
+EvalResult AltairEval::get_external_eval_result(const Chess::Board& board)
+{
+    auto position = get_position_from_external(board);
+
+    Trace trace{};
+    trace.score = evaluate(position, trace);
+
+    EvalResult result;
+    result.coefficients = get_coefficients(trace);
+    result.score = trace.score;
+    result.endgame_scale = 1;
+
+    return result;
 }

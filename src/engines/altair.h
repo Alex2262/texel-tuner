@@ -11,6 +11,7 @@
 #include <cstdint>
 #include "types.h"
 #include "bitboard.h"
+#include "../external/chess.hpp"
 
 inline bool same_color (Square square_1, Square square_2) {
     return (( 9 * (square_1 ^ square_2)) & 8) == 0;
@@ -138,8 +139,11 @@ namespace Altair {
     {
     public:
         constexpr static bool includes_additional_score = true;
+        constexpr static bool supports_external_chess_eval = true;
+
         static parameters_t get_initial_parameters();
         static EvalResult get_fen_eval_result(const std::string& fen);
+        static EvalResult get_external_eval_result(const Chess::Board& board);
         static void print_parameters(const parameters_t& parameters);
     };
 }
