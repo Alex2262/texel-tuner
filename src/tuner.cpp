@@ -2,6 +2,7 @@
 #include "base.h"
 #include "config.h"
 #include "threadpool.h"
+#include "external/chess.hpp"
 
 #include <array>
 #include <chrono>
@@ -40,6 +41,7 @@ struct Entry
     tune_t additional_score;
 #if TAPERED
     int32_t phase;
+    tune_t endgame_scale;
 #endif
 };
 
@@ -54,17 +56,17 @@ static const array<WdlMarker, 6> markers
     WdlMarker{"0-1", 0}
 };
 
-static tune_t get_fen_wdl(const string& fen, bool white_to_move, bool side_to_move_wdl)
+static tune_t get_fen_wdl(const string& original_fen, const bool original_white_to_move, const bool white_to_move, const bool side_to_move_wdl)
 {
     tune_t wdl;
     bool marker_found = false;
     for (auto& marker : markers)
     {
-        if (fen.find(marker.marker) != std::string::npos)
+        if (original_fen.find(marker.marker) != std::string::npos)
         {
             if (marker_found)
             {
-                cout << "WDL marker already found on line " << fen << endl;
+                cout << "WDL marker already found on line " << original_fen << endl;
                 throw std::runtime_error("WDL marker already found");
             }
             marker_found = true;
@@ -74,7 +76,7 @@ static tune_t get_fen_wdl(const string& fen, bool white_to_move, bool side_to_mo
 
     if(!marker_found)
     {
-        stringstream ss(fen);
+        stringstream ss(original_fen);
         while (!ss.eof())
         {
             string word;
@@ -89,11 +91,11 @@ static tune_t get_fen_wdl(const string& fen, bool white_to_move, bool side_to_mo
 
     if (!marker_found)
     {
-        cout << "WDL marker not found on line " << fen << endl;
+        cout << "WDL marker not found on line " << original_fen << endl;
         throw std::runtime_error("WDL marker not found");
     }
 
-    if(!white_to_move && side_to_move_wdl)
+    if(!original_white_to_move && side_to_move_wdl)
     {
         wdl = 1 - wdl;
     }
@@ -142,7 +144,7 @@ static tune_t linear_eval(const Entry& entry, const parameters_t& parameters)
     for (const auto& coefficient : entry.coefficients)
     {
         midgame += coefficient.value * parameters[coefficient.index][static_cast<int32_t>(PhaseStages::Midgame)];
-        endgame += coefficient.value * parameters[coefficient.index][static_cast<int32_t>(PhaseStages::Endgame)];
+        endgame += coefficient.value * parameters[coefficient.index][static_cast<int32_t>(PhaseStages::Endgame)] * entry.endgame_scale;
     }
     score += (midgame * entry.phase + endgame * (24 - entry.phase)) / 24;
 #else
@@ -151,11 +153,6 @@ static tune_t linear_eval(const Entry& entry, const parameters_t& parameters)
         score += coefficient.value * parameters[coefficient.index];
     }
 #endif
-
-    //if(!entry.white_to_move)
-    //{
-    //    score = -score;
-    //}
 
     return score;
 }
@@ -208,6 +205,35 @@ static int32_t get_phase(const string& fen)
     return phase;
 }
 
+static int32_t get_phase(const Chess::Board& board)
+{
+    int32_t phase = 0;
+
+    for(Chess::Square square = static_cast<Chess::Square>(0); square < 64; ++square)
+    {
+        auto piece = board.pieceAt(square);
+        switch (piece)
+        {
+        case Chess::Piece::WHITEKNIGHT:
+        case Chess::Piece::WHITEBISHOP:
+        case Chess::Piece::BLACKKNIGHT:
+        case Chess::Piece::BLACKBISHOP:
+            phase += 1;
+            break;
+        case Chess::Piece::WHITEROOK:
+        case Chess::Piece::BLACKROOK:
+            phase += 2;
+            break;
+        case Chess::Piece::WHITEQUEEN:
+        case Chess::Piece::BLACKQUEEN:
+            phase += 4;
+            break;
+        }
+    }
+
+    return phase;
+}
+
 static void print_statistics(const parameters_t& parameters, const vector<Entry>& entries)
 {
     array<size_t, 2> wins{};
@@ -249,6 +275,259 @@ static void print_statistics(const parameters_t& parameters, const vector<Entry>
     cout << endl;
 }
 
+constexpr tune_t inf = 1 << 20;
+struct PvEntry
+{
+    array<Chess::Move, 64> moves{};
+    int32_t length = 0;
+};
+using pv_table_t = array<PvEntry, 64>;
+
+static int32_t get_piece_value(const Chess::Piece piece)
+{
+    switch (piece)
+    {
+    case Chess::Piece::WHITEPAWN:
+    case Chess::Piece::BLACKPAWN:
+        return 100;
+    case Chess::Piece::WHITEKNIGHT:
+    case Chess::Piece::BLACKKNIGHT:
+        return 300;
+    case Chess::Piece::WHITEBISHOP:
+    case Chess::Piece::BLACKBISHOP:
+        return 300;
+    case Chess::Piece::WHITEROOK:
+    case Chess::Piece::BLACKROOK:
+        return 500;
+    case Chess::Piece::WHITEQUEEN:
+    case Chess::Piece::BLACKQUEEN:
+        return 900;
+    case Chess::Piece::WHITEKING:
+    case Chess::Piece::BLACKKING:
+    case Chess::Piece::NONE:
+        return 0;
+        //throw std::runtime_error("Invalid piece for value");
+    }
+}
+
+static int32_t mvv_lva(const Chess::Board& board, const Chess::Move move)
+{
+    const auto from = move.from();
+    const auto to = move.to();
+    const auto piece = board.pieceAt(from);
+    Chess::Piece takes;
+    const auto type = move.typeOf();
+    if(type == Chess::Move::EN_PASSANT)
+    {
+        takes = board.sideToMove() == Chess::Color::WHITE ? Chess::Piece::BLACKPAWN : Chess::Piece::WHITEPAWN;
+    }
+    else
+    {
+        takes = board.pieceAt(to);
+    }
+
+    auto score = get_piece_value(takes);
+    score <<= 16;
+    score -= get_piece_value(piece);
+    return score;
+}
+
+static tune_t quiescence(Chess::Board& board, const parameters_t& parameters, pv_table_t& pv_table, tune_t alpha, tune_t beta, const int32_t ply)
+{
+    pv_table[ply].length = 0;
+
+    EvalResult eval_result;
+    if constexpr (TuneEval::supports_external_chess_eval)
+    {
+        eval_result = TuneEval::get_external_eval_result(board);
+    }
+    else
+    {
+        auto fen = board.getFen();
+        eval_result = TuneEval::get_fen_eval_result(fen);
+    }
+
+    Entry entry;
+    entry.white_to_move = board.sideToMove() == Chess::Color::WHITE;
+#if TAPERED
+    entry.endgame_scale = eval_result.endgame_scale;
+#endif
+    get_coefficient_entries(eval_result.coefficients, entry.coefficients, static_cast<int32_t>(parameters.size()));
+#if TAPERED
+    entry.phase = get_phase(board);
+#endif
+    entry.additional_score = 0;
+    tune_t eval = linear_eval(entry, parameters);
+    if(!entry.white_to_move)
+    {
+        eval = -eval;
+    }
+
+    if (eval >= beta)
+    {
+        return eval;
+    }
+
+    if (eval > alpha)
+    {
+        alpha = eval;
+    }
+
+    Chess::Movelist<Chess::Move> moves;
+    Chess::Movegen::legalmoves<Chess::Move, Chess::MoveGenType::CAPTURE>(moves, board);
+    array<int32_t, 64> move_scores;
+    for (int32_t move_index = 0; move_index < moves.size(); move_index++)
+    {
+        move_scores[move_index] = mvv_lva(board, moves[move_index]);
+    }
+
+    if(moves.size() == 0)
+    {
+        return alpha;
+    }
+
+    tune_t best_score = -inf;
+    auto best_move = Chess::Move(Chess::Move::NO_MOVE);
+    //for (const auto& move : movelist) {
+    for(int32_t move_index = 0; move_index < moves.size(); move_index++)
+    {
+        int32_t best_move_score = 0;
+        int32_t best_move_index = 0;
+        for(auto i = move_index; i < moves.size(); i++)
+        {
+            if(move_scores[i] > best_move_score)
+            {
+                best_move_score = move_scores[i];
+                best_move_index = i;
+            }
+        }
+
+        const auto move = moves[best_move_index];
+        moves[best_move_index] = moves[move_index];
+        move_scores[best_move_index] = move_scores[move_index];
+
+        board.makeMove(move);
+
+        const auto child_score = -quiescence(board, parameters, pv_table, -beta, -alpha, ply + 1);
+        if(child_score > best_score)
+        {
+            best_score = child_score;
+            best_move = move;
+            if (child_score > alpha)
+            {
+                alpha = child_score;
+                if(child_score >= beta)
+                {
+                    board.unmakeMove(move);
+                    break;
+                }
+
+                auto& this_ply = pv_table[ply];
+                auto& next_ply = pv_table[ply + 1];
+                this_ply.moves[0] = move;
+                this_ply.length = next_ply.length + 1;
+                for (int32_t nextPlyIndex = 0; nextPlyIndex < next_ply.length; nextPlyIndex++)
+                {
+                    this_ply.moves[nextPlyIndex + 1] = next_ply.moves[nextPlyIndex];
+                }
+            }
+        }
+
+        board.unmakeMove(move);
+    }
+
+    return best_score;
+}
+
+string quiescence_root(const parameters_t& parameters, const string& initial_fen)
+{
+    pv_table_t pv_table {};
+    int space_count = 0;
+    size_t pos = 0;
+    for (size_t i = 0; i < initial_fen.size(); ++i) {
+        if (initial_fen[i] == ' ') {
+            ++space_count;
+        }
+        if (space_count == 4) {
+            pos = i;
+            break;
+        }
+    }
+    const auto clean_fen = initial_fen.substr(0, pos);
+
+    auto board = Chess::Board(clean_fen);
+    auto score = quiescence(board, parameters, pv_table, -inf, inf, 0);
+    if(board.sideToMove() == Chess::Color::BLACK)
+    {
+        score = -score;
+    }
+    if constexpr (print_data_entries)
+    {
+        if (pv_table[0].length > 0)
+        {
+            cout << " PV:";
+            for (int32_t pv_index = 0; pv_index < pv_table[0].length; pv_index++)
+            {
+                cout << " " << pv_table[0].moves[pv_index];
+            }
+        }
+        cout << " QS: " << score;
+    }
+
+    for (int32_t pv_index = 0; pv_index < pv_table[0].length; pv_index++)
+    {
+        board.makeMove(pv_table[0].moves[pv_index]);
+    }
+
+    auto result_fen = board.getFen();
+    return result_fen;
+}
+
+static void load_fen(const DataSource& source, const parameters_t& parameters, const high_resolution_clock::time_point start, vector<Entry>& entries, const string& original_fen)
+{
+    if constexpr (print_data_entries)
+    {
+        //cout << fen;
+    }
+
+    string fen;
+    if constexpr (enable_qsearch)
+    {
+        fen = quiescence_root(parameters, original_fen);
+    }
+    else
+    {
+        fen = original_fen;
+    }
+
+    const auto eval_result = TuneEval::get_fen_eval_result(fen);
+
+    Entry entry;
+    entry.white_to_move = get_fen_color_to_move(fen);
+#if TAPERED
+    entry.endgame_scale = eval_result.endgame_scale;
+#endif
+    const bool original_white_to_move = get_fen_color_to_move(original_fen);
+    //cout << (entry.white_to_move ? "w" : "b") << " ";
+    entry.wdl = get_fen_wdl(original_fen, original_white_to_move, entry.white_to_move, source.side_to_move_wdl);
+    get_coefficient_entries(eval_result.coefficients, entry.coefficients, static_cast<int32_t>(parameters.size()));
+#if TAPERED
+    entry.phase = get_phase(fen);
+#endif
+    entry.additional_score = 0;
+    if constexpr (TuneEval::includes_additional_score)
+    {
+        const tune_t score = linear_eval(entry, parameters);
+        if constexpr (print_data_entries)
+        {
+            cout << " Eval: " << score << endl;
+        }
+        entry.additional_score = eval_result.score - score;
+    }
+
+    entries.push_back(entry);
+}
+
 static void load_fens(const DataSource& source, const parameters_t& parameters, const high_resolution_clock::time_point start, vector<Entry>& entries)
 {
     cout << "Loading " << source.path;
@@ -266,7 +545,6 @@ static void load_fens(const DataSource& source, const parameters_t& parameters, 
     }
 
     int64_t position_count = 0;
-    string fen;
     while (!file.eof())
     {
         if (source.position_limit > 0 && position_count >= source.position_limit)
@@ -274,36 +552,17 @@ static void load_fens(const DataSource& source, const parameters_t& parameters, 
             break;
         }
 
-        getline(file, fen);
-        if (fen.empty())
+        string original_fen;
+        getline(file, original_fen);
+        if (original_fen.empty())
         {
             break;
         }
 
-        const auto eval_result = TuneEval::get_fen_eval_result(fen);
+        load_fen(source, parameters, start, entries, original_fen);
 
-        Entry entry;
-        entry.white_to_move = get_fen_color_to_move(fen);
-        entry.wdl = get_fen_wdl(fen, entry.white_to_move, source.side_to_move_wdl);
-
-        get_coefficient_entries(eval_result.coefficients, entry.coefficients, static_cast<int32_t>(parameters.size()));
-#if TAPERED
-        entry.phase = get_phase(fen);
-#endif
-        entry.additional_score = 0;
-        if constexpr (TuneEval::includes_additional_score)
-        {
-            const tune_t score = linear_eval(entry, parameters);
-            //if (int (score) != int(eval_result.score)) {
-            //    break;
-            //}
-            entry.additional_score = eval_result.score - score;
-        }
-
-        entries.push_back(entry);
-        
         position_count++;
-        if (position_count % 100000 == 0)
+        if (position_count % data_load_print_interval == 0)
         {
             print_elapsed(start);
             std::cout << "Loaded " << position_count << " entries..." << std::endl;
@@ -383,14 +642,14 @@ static void update_single_gradient(parameters_t& gradient, const Entry& entry, c
 
 #if TAPERED
     const auto mg_base = res * (entry.phase / static_cast<tune_t>(24));
-    const auto eg_base = res * (1 - mg_base);
+    const auto eg_base = res - mg_base;
 #endif
 
     for (const auto& coefficient : entry.coefficients)
     {
 #if TAPERED
         gradient[coefficient.index][static_cast<int32_t>(PhaseStages::Midgame)] += mg_base * coefficient.value;
-        gradient[coefficient.index][static_cast<int32_t>(PhaseStages::Endgame)] += eg_base * coefficient.value;
+        gradient[coefficient.index][static_cast<int32_t>(PhaseStages::Endgame)] += eg_base * coefficient.value * entry.endgame_scale;
 #else
         gradient[coefficient.index] += res * coefficient.value;
 #endif
@@ -506,6 +765,7 @@ void Tuner::run(const std::vector<DataSource>& sources)
 
     const auto loop_start = high_resolution_clock::now();
     tune_t learning_rate = 1;
+    int32_t max_tune_epoch = max_epoch;
 #if TAPERED
     parameters_t momentum(parameters.size(), pair_t{});
     parameters_t velocity(parameters.size(), pair_t{});
@@ -513,7 +773,7 @@ void Tuner::run(const std::vector<DataSource>& sources)
     parameters_t momentum(parameters.size(), 0);
     parameters_t velocity(parameters.size(), 0);
 #endif
-    for (int epoch = 1; epoch < 1000000; epoch++)
+    for (int epoch = 1; epoch < max_tune_epoch; epoch++)
     {
 #if TAPERED
         parameters_t gradient(parameters.size(), pair_t{});
@@ -561,4 +821,6 @@ void Tuner::run(const std::vector<DataSource>& sources)
             learning_rate *= lr_drop_ratio;
         }
     }
+
+    thread_pool.stop();
 }
