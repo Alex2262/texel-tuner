@@ -449,6 +449,11 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
             int distance_to_opp_king = get_manhattan_distance(square, evaluation_information.king_squares[~color]);
             score += OPP_KING_TROPISM[piece_type] * distance_to_opp_king;
             trace.opp_king_tropism[piece_type][color] += distance_to_opp_king;
+
+            // OUR KING TROPISM
+            int distance_to_our_king = get_manhattan_distance(square, evaluation_information.king_squares[color]);
+            score += OUR_KING_TROPISM[piece_type] * distance_to_our_king;
+            trace.our_king_tropism[piece_type][color] += distance_to_our_king;
         }
 
         if constexpr (piece_type == KING || piece_type == QUEEN || piece_type == ROOK) {
@@ -904,6 +909,7 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array_2d(coefficients, trace.king_pawn_storm, 6, 8);
 
     get_coefficient_array(coefficients, trace.opp_king_tropism, 6);
+    get_coefficient_array(coefficients, trace.our_king_tropism, 6);
 
     get_coefficient_single(coefficients, trace.doubled_pawn_penalty);
 
@@ -946,6 +952,7 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_2d(parameters, KING_PAWN_STORM, 6, 8);
 
     get_initial_parameter_array(parameters, OPP_KING_TROPISM, 6);
+    get_initial_parameter_array(parameters, OUR_KING_TROPISM, 6);
 
     get_initial_parameter_single(parameters, DOUBLED_PAWN_PENALTY);
 
@@ -993,6 +1000,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array_2d(ss, parameters_copy, index, "KING_PAWN_STORM", 6, 8);
 
     print_array(ss, parameters_copy, index, "OPP_KING_TROPISM", 6);
+    print_array(ss, parameters_copy, index, "OUR_KING_TROPISM", 6);
 
     print_single(ss, parameters_copy, index, "DOUBLED_PAWN_PENALTY");
 

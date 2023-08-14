@@ -46,6 +46,7 @@ constexpr SCORE_TYPE KING_PAWN_SHIELD[5][8] = {0};
 constexpr SCORE_TYPE KING_PAWN_STORM[6][8] = {0};
 
 constexpr SCORE_TYPE OPP_KING_TROPISM[6] = {0};
+constexpr SCORE_TYPE OUR_KING_TROPISM[6] = {0};
 
 constexpr SCORE_TYPE DOUBLED_PAWN_PENALTY = 0;
 

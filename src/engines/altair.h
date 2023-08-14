@@ -100,6 +100,7 @@ struct Trace {
     short king_pawn_storm[6][8][2]{};
 
     short opp_king_tropism[6][2]{};
+    short our_king_tropism[6][2]{};
 
     short doubled_pawn_penalty[2]{};
 
