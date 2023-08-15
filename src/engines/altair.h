@@ -13,8 +13,15 @@
 #include "bitboard.h"
 #include "../external/chess.hpp"
 
-inline bool same_color (Square square_1, Square square_2) {
+//                                     LIGHT SQUARE         DARK SQUARE
+constexpr BITBOARD square_colors[2] = {0x55AA55AA55AA55AA, 0xAA55AA55AA55AA55};
+
+inline bool same_color(Square square_1, Square square_2) {
     return (( 9 * (square_1 ^ square_2)) & 8) == 0;
+}
+
+inline Color get_square_color(Square square) {
+    return static_cast<Color>((square_colors[1] >> square) & 1);
 }
 
 inline int get_manhattan_distance(Square square_1, Square square_2) {
@@ -107,6 +114,10 @@ struct Trace {
     short square_of_the_pawn[2]{};
 
     short backwards_pawn_penalty[2]{};
+
+    short bad_bishop_our_complex[2]{};
+    short bad_bishop_opp_complex[2]{};
+    short opp_color_weakness[2]{};
 };
 
 template<int n>

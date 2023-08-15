@@ -10,6 +10,7 @@
 enum Color : int {
     WHITE,
     BLACK,
+    NO_COLOR
 };
 
 constexpr Color operator~(Color c) {

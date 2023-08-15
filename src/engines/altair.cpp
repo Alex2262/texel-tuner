@@ -188,6 +188,8 @@ struct EvaluationInformation {
 
     int piece_counts[2][6]{};
 
+    uint32_t pawn_color_counts[2][2]{};
+
     int total_king_ring_attacks[2]{};
 
     Square king_squares[2]{};
@@ -197,6 +199,8 @@ struct EvaluationInformation {
     BITBOARD pawn_attacks[2]{};
 
     BITBOARD piece_relative_occupancies[2][6]{};
+
+    Color color_complex[2] = {NO_COLOR, NO_COLOR};
 };
 
 void initialize_evaluation_information(Position& position, EvaluationInformation& evaluation_information) {
@@ -213,6 +217,11 @@ void initialize_evaluation_information(Position& position, EvaluationInformation
 
     evaluation_information.pieces[WHITE] = position.get_pieces(WHITE);
     evaluation_information.pieces[BLACK] = position.get_pieces(BLACK);
+
+    evaluation_information.pawn_color_counts[WHITE][WHITE] = popcount(evaluation_information.pawns[WHITE] & square_colors[0]);
+    evaluation_information.pawn_color_counts[WHITE][BLACK] = popcount(evaluation_information.pawns[WHITE] & square_colors[1]);
+    evaluation_information.pawn_color_counts[BLACK][WHITE] = popcount(evaluation_information.pawns[BLACK] & square_colors[0]);
+    evaluation_information.pawn_color_counts[BLACK][BLACK] = popcount(evaluation_information.pawns[BLACK] & square_colors[1]);
 
     evaluation_information.pawn_attacks[WHITE] = get_pawn_bitboard_attacks(evaluation_information.pawns[WHITE], WHITE);
     evaluation_information.pawn_attacks[BLACK] = get_pawn_bitboard_attacks(evaluation_information.pawns[BLACK], BLACK);
@@ -239,6 +248,22 @@ void initialize_evaluation_information(Position& position, EvaluationInformation
             white_diagonal_sliders | white_orthogonal_sliders;
     evaluation_information.piece_relative_occupancies[BLACK][QUEEN] ^=
             black_diagonal_sliders | black_orthogonal_sliders;
+
+    for (int color = 0; color < 2; color++) {
+
+        bool white_complex = evaluation_information.pawn_color_counts[color][WHITE] >= 6 ||
+                            (evaluation_information.pawn_color_counts[color][WHITE] >= 5 &&
+                             evaluation_information.pawn_color_counts[color][BLACK] <= 2); //||
+                            //(evaluation_information.pawn_color_counts[color][WHITE] >= 4 &&
+                            // evaluation_information.pawn_color_counts[color][BLACK] <= 1);
+        bool black_complex = evaluation_information.pawn_color_counts[color][BLACK] >= 6 ||
+                            (evaluation_information.pawn_color_counts[color][BLACK] >= 5 &&
+                             evaluation_information.pawn_color_counts[color][WHITE] <= 2); //||
+                            //(evaluation_information.pawn_color_counts[color][BLACK] >= 4 &&
+                             //evaluation_information.pawn_color_counts[color][WHITE] <= 1);
+
+        evaluation_information.color_complex[color] = white_complex ? WHITE : black_complex ? BLACK : NO_COLOR;
+    }
 }
 
 Square get_white_relative_square(Square square, Color color) {
@@ -466,6 +491,25 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
                     score += SEMI_OPEN_FILE_VALUES[piece_type];
                     trace.semi_open_file_values[piece_type][color]++;
                 }
+            }
+        }
+
+        if constexpr (piece_type == BISHOP) {
+            Color bishop_color = get_square_color(square);
+            if (bishop_color == evaluation_information.color_complex[color]) {
+                score += BAD_BISHOP_OUR_COMPLEX;
+                trace.bad_bishop_our_complex[color]++;
+            }
+
+            if (bishop_color == evaluation_information.color_complex[~color]) {
+                score += BAD_BISHOP_OPP_COMPLEX;
+                trace.bad_bishop_opp_complex[color]++;
+            }
+
+            else if (evaluation_information.color_complex[~color] != NO_COLOR &&
+                     !(position.get_pieces(BISHOP, ~color) & square_colors[bishop_color])) {
+                score += OPP_COLOR_WEAKNESS;
+                trace.opp_color_weakness[color]++;
             }
         }
 
@@ -917,6 +961,10 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.backwards_pawn_penalty);
 
+    get_coefficient_single(coefficients, trace.bad_bishop_our_complex);
+    get_coefficient_single(coefficients, trace.bad_bishop_opp_complex);
+    get_coefficient_single(coefficients, trace.opp_color_weakness);
+
     return coefficients;
 }
 
@@ -959,6 +1007,10 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, SQUARE_OF_THE_PAWN);
 
     get_initial_parameter_single(parameters, BACKWARDS_PAWN_PENALTY);
+
+    get_initial_parameter_single(parameters, BAD_BISHOP_OUR_COMPLEX);
+    get_initial_parameter_single(parameters, BAD_BISHOP_OPP_COMPLEX);
+    get_initial_parameter_single(parameters, OPP_COLOR_WEAKNESS);
 
     return parameters;
 }
@@ -1007,6 +1059,10 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN");
 
     print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
+
+    print_single(ss, parameters_copy, index, "BAD_BISHOP_OUR_COMPLEX");
+    print_single(ss, parameters_copy, index, "BAD_BISHOP_OPP_COMPLEX");
+    print_single(ss, parameters_copy, index, "OPP_COLOR_WEAKNESS");
 
     std::cout << ss.str() << "\n";
 }
