@@ -429,8 +429,30 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
                     (~evaluation_information.pieces[color]) &
                     (~evaluation_information.pawn_attacks[~color]);
 
-            score += static_cast<SCORE_TYPE>(popcount(mobility)) * MOBILITY_VALUES[piece_type];
-            trace.mobility_values[piece_type][color] += popcount(mobility);
+            int mobility_count = static_cast<int>(popcount(mobility)) - 1;
+
+            if (mobility_count >= 0) {
+                if constexpr (piece_type == KNIGHT) {
+                    score += KNIGHT_MOBILITY[mobility_count];
+                    trace.knight_mobility[mobility_count][color]++;
+                }
+
+                if constexpr (piece_type == BISHOP) {
+                    score += BISHOP_MOBILITY[mobility_count];
+                    trace.bishop_mobility[mobility_count][color]++;
+                }
+
+                if constexpr (piece_type == ROOK) {
+                    score += ROOK_MOBILITY[mobility_count];
+                    trace.rook_mobility[mobility_count][color]++;
+                }
+
+                if constexpr (piece_type == QUEEN) {
+                    score += QUEEN_MOBILITY[mobility_count];
+                    trace.queen_mobility[mobility_count][color]++;
+                }
+            }
+
 
             // KING RING ATTACKS
             BITBOARD king_ring_attacks_1 = piece_attacks & king_ring_zone.masks[0][evaluation_information.king_squares[~color]];
@@ -895,7 +917,10 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.tempo_bonus);
 
-    get_coefficient_array(coefficients, trace.mobility_values, 6);
+    get_coefficient_array(coefficients, trace.knight_mobility, 8);
+    get_coefficient_array(coefficients, trace.bishop_mobility, 13);
+    get_coefficient_array(coefficients, trace.rook_mobility, 14);
+    get_coefficient_array(coefficients, trace.queen_mobility, 27);
 
     get_coefficient_array(coefficients, trace.semi_open_file_values, 6);
     get_coefficient_array(coefficients, trace.open_file_values, 6);
@@ -938,7 +963,10 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_single(parameters, TEMPO_BONUS);
 
-    get_initial_parameter_array(parameters, MOBILITY_VALUES, 6);
+    get_initial_parameter_array(parameters, KNIGHT_MOBILITY, 8);
+    get_initial_parameter_array(parameters, BISHOP_MOBILITY, 13);
+    get_initial_parameter_array(parameters, ROOK_MOBILITY, 14);
+    get_initial_parameter_array(parameters, QUEEN_MOBILITY, 27);
 
     get_initial_parameter_array(parameters, SEMI_OPEN_FILE_VALUES, 6);
     get_initial_parameter_array(parameters, OPEN_FILE_VALUES, 6);
@@ -986,7 +1014,10 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_single(ss, parameters_copy, index, "TEMPO_BONUS");
 
-    print_array(ss, parameters_copy, index, "MOBILITY_VALUES", 6);
+    print_array(ss, parameters_copy, index, "KNIGHT_MOBILITY", 8);
+    print_array(ss, parameters_copy, index, "BISHOP_MOBILITY", 13);
+    print_array(ss, parameters_copy, index, "ROOK_MOBILITY", 14);
+    print_array(ss, parameters_copy, index, "QUEEN_MOBILITY", 27);
 
     print_array(ss, parameters_copy, index, "SEMI_OPEN_FILE_VALUES", 6);
     print_array(ss, parameters_copy, index, "OPEN_FILE_VALUES", 6);

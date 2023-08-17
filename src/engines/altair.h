@@ -86,10 +86,10 @@ struct Trace {
 
     short tempo_bonus[2]{};
 
-    short knight_mobility[9][2]{};
-    short bishop_mobility[9][2]{};
-    short rook_mobility[9][2]{};
-    short queen_mobility[9][2]{};
+    short knight_mobility[8][2]{};
+    short bishop_mobility[13][2]{};
+    short rook_mobility[14][2]{};
+    short queen_mobility[27][2]{};
 
     short semi_open_file_values[6][2]{};
     short open_file_values[6][2]{};
