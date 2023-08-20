@@ -783,13 +783,13 @@ static void print_parameter(std::stringstream& ss, const pair_t parameter)
 
     ss << "S(";
 
-    for (int i = 0; i < 4 - mg_size; i++) {
+    for (int i = 0; i < 6 - mg_size; i++) {
         ss << " ";
     }
 
     ss << mg << ",";
 
-    for (int i = 0; i < 4 - eg_size; i++) {
+    for (int i = 0; i < 6 - eg_size; i++) {
         ss << " ";
     }
 
