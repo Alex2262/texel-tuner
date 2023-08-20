@@ -66,12 +66,6 @@ struct Trace {
     short piece_square_tables[6][64][2]{};
 
     short tempo[2];
-
-    /*
-    short piece_rank[6][8][2]{};
-    short piece_file[6][8][2]{};
-    short centrality[6][4][2]{};
-     */
 };
 
 

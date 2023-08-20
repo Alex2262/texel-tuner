@@ -235,24 +235,9 @@ int evaluate(Position& position, Trace& trace) {
             Square square = poplsb(pieceBB);
             auto relative_square = static_cast<Square>(square ^ (56 * ~color));
 
-            scores_mid[color] += PIECE_SQUARE_TABLES_MID[pieceType][square ^ (56 * ~color)];
-            scores_end[color] += PIECE_SQUARE_TABLES_END[pieceType][square ^ (56 * ~color)];
-            trace.piece_square_tables[pieceType][square ^ (56 * ~color)][color]++;
-
-            /*
-            scores_mid[color] += PIECE_RANK_MID[pieceType][relative_square / 8];
-            scores_end[color] += PIECE_RANK_END[pieceType][relative_square / 8];
-            trace.piece_rank[pieceType][relative_square / 8][color]++;
-
-            scores_mid[color] += PIECE_FILE_MID[pieceType][relative_square % 8];
-            scores_end[color] += PIECE_FILE_END[pieceType][relative_square % 8];
-            trace.piece_file[pieceType][relative_square % 8][color]++;
-
-            int center_distance = centerDistance(relative_square);
-            scores_mid[color] += CENTRALITY_MID[pieceType][center_distance];
-            scores_end[color] += CENTRALITY_END[pieceType][center_distance];
-            trace.centrality[pieceType][center_distance][color]++;
-             */
+            scores_mid[color] += PIECE_SQUARE_TABLES_MID[pieceType][relative_square];
+            scores_end[color] += PIECE_SQUARE_TABLES_END[pieceType][relative_square];
+            trace.piece_square_tables[pieceType][relative_square][color]++;
         }
     }
 
@@ -385,8 +370,9 @@ static void rebalance_piece_square_tables(parameters_t& parameters, const int ma
         for (int stage = 0; stage < 2; stage++) {
 
             double sum = 0;
+            int start = piece == 0 ? 8 : 0;
 
-            for (int i = 0; i < 64; i++) {
+            for (int i = start; i < 64 - start; i++) {
                 const int pst_index = pst_offset + piece * 64 + i;
                 sum += parameters[pst_index][stage];
             }
@@ -395,132 +381,12 @@ static void rebalance_piece_square_tables(parameters_t& parameters, const int ma
 
             parameters[material_offset + piece][stage] += average;
 
-            for (int i = 0; i < 64; i++) {
+            for (int i = start; i < 64 - start; i++) {
                 const int pst_index = pst_offset + piece * 64 + i;
                 parameters[pst_index][stage] -= average;
             }
 
         }
-    }
-}
-
-static void rebalance_piece_terms(parameters_t& parameters, const int material_offset, const int offset, const int size2) {
-    // loop through all pieces excluding the king
-    for (int piece = 0; piece <= 4; piece++) {
-
-        for (int stage = 0; stage < 2; stage++) {
-
-            double sum = 0;
-
-            for (int i = 0; i < size2; i++) {
-                const int index = offset + piece * size2 + i;
-                sum += parameters[index][stage];
-            }
-
-            const double average = sum / size2;
-
-            parameters[material_offset + piece][stage] += average;
-
-            for (int i = 0; i < size2; i++) {
-                const int index = offset + piece * size2 + i;
-                parameters[index][stage] -= average;
-            }
-
-        }
-    }
-}
-
-void print_PST(std::stringstream& ss, parameters_t &parameters, const int pst_offset) {
-
-    for (int phase = 0; phase < 2; phase++) {
-        ss << "ulong[,] PST" << " = {\n";
-        for (int piece = 0; piece < 6; piece++) {
-            ss << "\t{";
-            for (int rank = 0; rank < 8; rank++) {
-                uint64_t score = 0;
-
-                for (int file = 0; file < 8; file++) {
-                    int square = (rank * 8 + file) ^ 56;
-                    auto new_score = static_cast<uint64_t>((parameters[pst_offset + piece * 64 + square][phase]) / 2.0 +
-                                                           128.0);
-                    // std::cout << piece << " " << rank << " " << file << " " << scale_factor << " " << new_score << std::endl;
-                    score |= new_score << (8 * file + phase * 64);
-                }
-
-                ss << " " << score;
-                if (rank != 7) ss << ",";
-            }
-            ss << "}";
-            if (piece != 5) ss << ",";
-            ss << "\n";
-        }
-        ss << "};\n";
-    }
-
-}
-
-
-void print_piece_ranks(std::stringstream& ss, parameters_t &parameters, const int offset) {
-    std::string phases[] = {"_MID", "_END"};
-    for (int phase = 0; phase < 2; phase++) {
-        ss << "ulong[][] pieceRanks" << phases[phase] << " = {";
-
-        for (int piece = 0; piece < 6; piece++) {
-            uint64_t score = 0;
-
-            for (int rank = 0; rank < 8; rank++) {
-                int relative_rank = 7 - rank;
-                auto new_score = static_cast<uint64_t>((parameters[offset + piece * 8 + relative_rank][phase] / 2.0 + 128.0));
-                score |= new_score << (8 * relative_rank);
-            }
-            ss << " " << score;
-
-            if (piece != 5) ss << ",";
-        }
-
-        ss << "};\n";
-    }
-}
-
-void print_piece_files(std::stringstream& ss, parameters_t &parameters, const int offset) {
-    std::string phases[] = {"_MID", "_END"};
-    for (int phase = 0; phase < 2; phase++) {
-        ss << "ulong[][] pieceFiles" << phases[phase] << " = {";
-
-        for (int piece = 0; piece < 6; piece++) {
-            uint64_t score = 0;
-
-            for (int file = 0; file < 8; file++) {
-                auto new_score = static_cast<uint64_t>((parameters[offset + piece * 8 + file][phase] / 2.0 + 128.0));
-                score |= new_score << (8 * file);
-            }
-            ss << " " << score;
-
-            if (piece != 5) ss << ",";
-        }
-
-        ss << "};\n";
-    }
-}
-
-void print_centrality(std::stringstream& ss, parameters_t &parameters, const int offset) {
-    std::string phases[] = {"_MID", "_END"};
-    for (int phase = 0; phase < 2; phase++) {
-        ss << "ulong[][] centrality" << phases[phase] << " = {";
-
-        for (int piece = 0; piece < 6; piece++) {
-            uint64_t score = 0;
-
-            for (int centrality = 0; centrality < 4; centrality++) {
-                auto new_score = static_cast<uint64_t>((parameters[offset + piece * 4 + centrality][phase] + 256.0));
-                score |= new_score << (16 * centrality);
-            }
-            ss << " " << score;
-
-            if (piece != 5) ss << ",";
-        }
-
-        ss << "};\n";
     }
 }
 
@@ -588,7 +454,6 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
 
-    print_PST(ss, parameters_copy, 6);
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
 
     print_single(ss, parameters_copy, index, "TEMPO");
