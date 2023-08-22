@@ -354,13 +354,22 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
 
             // Square of the Pawn
             auto promotion_square = get_black_relative_square(static_cast<Square>(square % 8), color);
-            int our_distance = get_chebyshev_distance(square, promotion_square);
-            int king_distance = get_chebyshev_distance(evaluation_information.king_squares[~color], promotion_square);
+            int promotion_distance = get_chebyshev_distance(square, promotion_square);
+            int promotion_king_distance = get_chebyshev_distance(evaluation_information.king_squares[~color], promotion_square);
 
-            if (std::min(our_distance, 5) < king_distance - (position.side != color)) {
+            if (std::min(promotion_distance, 5) < promotion_king_distance - (position.side != color)) {
                 score += SQUARE_OF_THE_PAWN;
                 trace.square_of_the_pawn[color]++;
             }
+
+            // Passed King Distances
+            int our_king_distance = get_chebyshev_distance(square, evaluation_information.king_squares[ color]);
+            int opp_king_distance = get_chebyshev_distance(square, evaluation_information.king_squares[~color]);
+
+            score += our_king_distance * PASSED_OUR_DISTANCE[relative_rank];
+            score += opp_king_distance * PASSED_OPP_DISTANCE[relative_rank];
+            trace.passed_our_distance[relative_rank][color] += our_king_distance;
+            trace.passed_opp_distance[relative_rank][color] += opp_king_distance;
         }
 
         // BACKWARDS PAWN (We can use the passed pawn mask for the opposite color including the two squares next to it)
@@ -917,6 +926,9 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.backwards_pawn_penalty);
 
+    get_coefficient_array(coefficients, trace.passed_our_distance, 8);
+    get_coefficient_array(coefficients, trace.passed_opp_distance, 8);
+
     return coefficients;
 }
 
@@ -959,6 +971,9 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, SQUARE_OF_THE_PAWN);
 
     get_initial_parameter_single(parameters, BACKWARDS_PAWN_PENALTY);
+
+    get_initial_parameter_array(parameters, PASSED_OUR_DISTANCE, 8);
+    get_initial_parameter_array(parameters, PASSED_OPP_DISTANCE, 8);
 
     return parameters;
 }
@@ -1007,6 +1022,9 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN");
 
     print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
+
+    print_array(ss, parameters_copy, index, "PASSED_OUR_DISTANCE", 8);
+    print_array(ss, parameters_copy, index, "PASSED_OPP_DISTANCE", 8);
 
     std::cout << ss.str() << "\n";
 }
