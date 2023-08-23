@@ -438,8 +438,8 @@ SCORE_TYPE evaluate_piece(Position& position, Color color, EvaluationInformation
                     (~evaluation_information.pieces[color]) &
                     (~evaluation_information.pawn_attacks[~color]);
 
-            score += static_cast<SCORE_TYPE>(popcount(mobility)) * MOBILITY_VALUES[piece_type];
-            trace.mobility_values[piece_type][color] += popcount(mobility);
+            score += MOBILITY_VALUES[piece_type - 1][popcount(mobility)];
+            trace.mobility_values[piece_type - 1][popcount(mobility)][color]++;
 
             // KING RING ATTACKS
             BITBOARD king_ring_attacks_1 = piece_attacks & king_ring_zone.masks[0][evaluation_information.king_squares[~color]];
@@ -866,19 +866,51 @@ static void rebalance_piece_square_tables(parameters_t& parameters, const int ma
         for (int stage = 0; stage < 2; stage++) {
 
             double sum = 0;
+            int start = piece == PAWN ? 8 : 0;
 
-            for (int i = 0; i < 64; i++) {
+            for (int i = start; i < 64 - start; i++) {
                 const int pst_index = pst_offset + piece * 64 + i;
                 sum += parameters[pst_index][stage];
             }
 
-            const double average = sum / 64;
+            const double average = sum / (64 - 2 * start);
 
             parameters[material_offset + piece][stage] += average;
 
-            for (int i = 0; i < 64; i++) {
+            for (int i = start; i < 64 - start; i++) {
                 const int pst_index = pst_offset + piece * 64 + i;
                 parameters[pst_index][stage] -= average;
+            }
+
+        }
+    }
+}
+
+
+static void rebalance_mobility_arrays(parameters_t& parameters, const int material_offset, const int mobility_offset) {
+
+    // loop through knight - queen
+    int lengths[4] = {9, 14, 15, 28};
+    for (int piece = 1; piece <= 4; piece++) {
+
+        int piece_index = piece - 1;
+        for (int stage = 0; stage < 2; stage++) {
+
+            double sum = 0;
+            int length = lengths[piece_index];
+
+            for (int i = 0; i < length; i++) {
+                const int index = mobility_offset + piece_index * 28 + i;
+                sum += parameters[index][stage];
+            }
+
+            const double average = sum / length;
+
+            parameters[material_offset + piece][stage] += average;
+
+            for (int i = 0; i < length; i++) {
+                const int index = mobility_offset + piece_index * 28 + i;
+                parameters[index][stage] -= average;
             }
 
         }
@@ -892,6 +924,8 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_array(coefficients, trace.piece_values, 6);
     get_coefficient_array_2d(coefficients, trace.piece_square_tables, 6, 64);
 
+    get_coefficient_array_2d(coefficients, trace.mobility_values, 4, 28);
+
     get_coefficient_array_2d(coefficients, trace.passed_pawn_bonuses, 3, 8);
     get_coefficient_array_2d(coefficients, trace.passed_pawn_blockers, 6, 8);
     get_coefficient_array_2d(coefficients, trace.passed_pawn_blockers_2, 6, 8);
@@ -903,8 +937,6 @@ static coefficients_t get_coefficients(const Trace& trace)
     get_coefficient_single(coefficients, trace.bishop_pair_bonus);
 
     get_coefficient_single(coefficients, trace.tempo_bonus);
-
-    get_coefficient_array(coefficients, trace.mobility_values, 6);
 
     get_coefficient_array(coefficients, trace.semi_open_file_values, 6);
     get_coefficient_array(coefficients, trace.open_file_values, 6);
@@ -938,6 +970,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array(parameters, PIECE_VALUES, 6);
     get_initial_parameter_array_2d(parameters, PIECE_SQUARE_TABLES, 6, 64);
 
+    get_initial_parameter_array_2d(parameters, MOBILITY_VALUES, 4, 28);
+
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BONUSES, 3, 8);
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS, 6, 8);
     get_initial_parameter_array_2d(parameters, PASSED_PAWN_BLOCKERS_2, 6, 8);
@@ -949,8 +983,6 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_single(parameters, BISHOP_PAIR_BONUS);
 
     get_initial_parameter_single(parameters, TEMPO_BONUS);
-
-    get_initial_parameter_array(parameters, MOBILITY_VALUES, 6);
 
     get_initial_parameter_array(parameters, SEMI_OPEN_FILE_VALUES, 6);
     get_initial_parameter_array(parameters, OPEN_FILE_VALUES, 6);
@@ -982,12 +1014,15 @@ parameters_t AltairEval::get_initial_parameters() {
 void AltairEval::print_parameters(const parameters_t &parameters) {
     parameters_t parameters_copy = parameters;
     rebalance_piece_square_tables(parameters_copy, 0, 6);
+    rebalance_mobility_arrays(parameters_copy, 0, 6 + 6 * 64);
 
     int index = 0;
     stringstream ss;
 
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
+
+    print_array_2d(ss, parameters_copy, index, "MOBILITY_VALUES", 4, 28);
 
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BONUSES", 3, 8);
     print_array_2d(ss, parameters_copy, index, "PASSED_PAWN_BLOCKERS", 6, 8);
@@ -1000,8 +1035,6 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_single(ss, parameters_copy, index, "BISHOP_PAIR_BONUS");
 
     print_single(ss, parameters_copy, index, "TEMPO_BONUS");
-
-    print_array(ss, parameters_copy, index, "MOBILITY_VALUES", 6);
 
     print_array(ss, parameters_copy, index, "SEMI_OPEN_FILE_VALUES", 6);
     print_array(ss, parameters_copy, index, "OPEN_FILE_VALUES", 6);

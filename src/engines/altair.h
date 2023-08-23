@@ -74,6 +74,8 @@ struct Trace {
     short piece_values[6][2]{};
     short piece_square_tables[6][64][2]{};
 
+    short mobility_values[4][28][2]{};
+
     short passed_pawn_bonuses[3][8][2]{};
     short passed_pawn_blockers[6][8][2]{};
     short passed_pawn_blockers_2[6][8][2]{};
@@ -85,8 +87,6 @@ struct Trace {
     short bishop_pair_bonus[2]{};
 
     short tempo_bonus[2]{};
-
-    short mobility_values[6][2]{};
 
     short semi_open_file_values[6][2]{};
     short open_file_values[6][2]{};
