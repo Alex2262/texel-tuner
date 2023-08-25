@@ -238,6 +238,11 @@ int evaluate(Position& position, Trace& trace) {
             scores_mid[color] += PIECE_SQUARE_TABLES_MID[pieceType][relative_square];
             scores_end[color] += PIECE_SQUARE_TABLES_END[pieceType][relative_square];
             trace.piece_square_tables[pieceType][relative_square][color]++;
+
+            BITBOARD attacks = get_piece_attacks(static_cast<Piece>(piece), square, position.all_pieces);
+            scores_mid[color] += popcount(attacks) * MOBILITY_MID[pieceType];
+            scores_end[color] += popcount(attacks) * MOBILITY_END[pieceType];
+            trace.mobility[pieceType][color] += popcount(attacks);
         }
     }
 
@@ -377,7 +382,7 @@ static void rebalance_piece_square_tables(parameters_t& parameters, const int ma
                 sum += parameters[pst_index][stage];
             }
 
-            const double average = sum / 64;
+            const double average = sum / (64 - 2 * start);
 
             parameters[material_offset + piece][stage] += average;
 
@@ -397,6 +402,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array_2d(coefficients, trace.piece_square_tables, 6, 64);
 
+    get_coefficient_array(coefficients, trace.mobility, 6);
+
     get_coefficient_single(coefficients, trace.tempo);
     /*
     get_coefficient_array_2d(coefficients, trace.piece_rank, 6, 8);
@@ -413,6 +420,8 @@ parameters_t AltairEval::get_initial_parameters() {
     get_initial_parameter_array_double(parameters, PIECE_VALUES_MID, PIECE_VALUES_END, 6);
 
     get_initial_parameter_array_2d_double(parameters, PIECE_SQUARE_TABLES_MID, PIECE_SQUARE_TABLES_END, 6, 64);
+
+    get_initial_parameter_array_double(parameters, MOBILITY_MID, MOBILITY_END, 6);
 
     get_initial_parameter_single_double(parameters, TEMPO_MID, TEMPO_END);
     /*
@@ -455,6 +464,8 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
     print_array(ss, parameters_copy, index, "PIECE_VALUES", 6);
 
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
+
+    print_array(ss, parameters_copy, index, "MOBILITY", 6);
 
     print_single(ss, parameters_copy, index, "TEMPO");
 

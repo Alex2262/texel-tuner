@@ -18,6 +18,9 @@ int PIECE_SQUARE_TABLES_MID[6][64]{};
 
 int PIECE_SQUARE_TABLES_END[6][64]{};
 
+int MOBILITY_MID[6]{};
+int MOBILITY_END[6]{};
+
 int TEMPO_MID =   0;
 int TEMPO_END =   0;
 
