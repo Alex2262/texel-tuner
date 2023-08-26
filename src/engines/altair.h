@@ -11,6 +11,7 @@
 #include <cstdint>
 #include "types.h"
 #include "bitboard.h"
+#include "fixed_vector.h"
 
 typedef unsigned __int128 uint128_t;
 
@@ -19,55 +20,13 @@ inline int centerDistance(int square)
     return (int)(2 * ((0xFFFFC3C3C3C3FFFF >> square) & 1) + ((0xFF81BDA5A5BD81FF >> square) & 1));
 }
 
-class Position {
-
-public:
-
-    Position() = default;
-
-    BITBOARD all_pieces{};
-    BITBOARD our_pieces{};
-    BITBOARD opp_pieces{};
-    BITBOARD empty_squares{};
-
-    BITBOARD pieces[12]{};
-
-    Piece board[64]{};
-
-    Color side = WHITE;
-
-    uint8_t castle_ability_bits = 0;
-    Square ep_square = NO_SQUARE;
-
-    [[nodiscard]] BITBOARD get_pieces(Piece piece) const;
-    [[nodiscard]] BITBOARD get_pieces(PieceType piece, Color color) const;
-    [[nodiscard]] BITBOARD get_pieces(Color color) const;
-
-    [[nodiscard]] BITBOARD get_our_pieces();
-    [[nodiscard]] BITBOARD get_opp_pieces();
-    [[nodiscard]] BITBOARD get_all_pieces() const;
-    [[nodiscard]] BITBOARD get_empty_squares() const;
-
-    [[nodiscard]] Square get_king_pos(Color color) const;
-
-    void remove_piece(Piece piece, Square square);
-    void place_piece(Piece piece, Square square);
-
-    PLY_TYPE set_fen(const std::string& fen);
-
-};
-
-constexpr char PIECE_MATCHER[12] = {'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'};
-
 struct Trace {
     int score={};
 
+    // short mobility[6][2]{};
     short piece_values[6][2]{};
-    short piece_square_tables[6][64][2]{};
+    short capture_bonus[2]{};
 
-    short mobility[6][2]{};
-
-    short tempo[2];
 };
 
 

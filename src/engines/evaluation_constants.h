@@ -9,20 +9,9 @@
 #include "types.h"
 #include "../base.h"
 
-constexpr int GAME_PHASES[6] = {0, 1, 1, 2, 4, 0};
-int PIECE_VALUES_MID[6]{};
-
-int PIECE_VALUES_END[6]{};
-
-int PIECE_SQUARE_TABLES_MID[6][64]{};
-
-int PIECE_SQUARE_TABLES_END[6][64]{};
-
-int MOBILITY_MID[6]{};
-int MOBILITY_END[6]{};
-
-int TEMPO_MID =   0;
-int TEMPO_END =   0;
+// int MOBILITY[6]{};
+int PIECE_VALUES[6]{};
+int CAPTURE_BONUS = 0;
 
 /*
 constexpr int PIECE_RANK_MID[6][8] = {0};

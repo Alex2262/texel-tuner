@@ -17,6 +17,13 @@ add_executable(tuner
         engines/bitboard.cpp
         engines/bitboard.h
         engines/types.h
-        engines/tables.h)
+        engines/tables.h
+        engines/position.cpp
+        engines/position.h
+        engines/fixed_vector.h
+        engines/zobrist.h
+        engines/move.cpp
+        engines/move.h
+        engines/constants.h)
 
 target_link_libraries(tuner PRIVATE Threads::Threads)
