@@ -372,19 +372,27 @@ SCORE_TYPE evaluate_pawns(Position& position, Color color, EvaluationInformation
             trace.passed_opp_distance[relative_rank][color] += opp_king_distance;
         }
 
-        // BACKWARDS PAWN (We can use the passed pawn mask for the opposite color including the two squares next to it)
+        BITBOARD isolated_pawn_mask = fill<SOUTH>(fill<NORTH>(shift<WEST>(bb_square) | shift<EAST>(bb_square)));
+
+        // We can use the passed pawn mask for the opposite color including the two squares next to it
         BITBOARD backwards_pawn_mask = passed_pawn_masks[~color][square]
                                        | (shift<WEST>(bb_square)) | (shift<EAST>(bb_square));
-        if (!(backwards_pawn_mask & evaluation_information.pawns[color])) {
-            score += BACKWARDS_PAWN_PENALTY;
-            trace.backwards_pawn_penalty[color]++;
-        }
 
         // ISOLATED PAWN
-        BITBOARD isolated_pawn_mask = fill<SOUTH>(fill<NORTH>(shift<WEST>(bb_square) | shift<EAST>(bb_square)));
         if (!(isolated_pawn_mask & evaluation_information.pawns[color])) {
             score += ISOLATED_PAWN_PENALTY;
             trace.isolated_pawn_penalty[color]++;
+        }
+
+        // BACKWARDS PAWN
+        // We don't count this as an isolated pawn, and we ensure that the backwards pawn is prevented from
+        // advancing by an opposing pawn
+        else if (!(backwards_pawn_mask & evaluation_information.pawns[color]) &&
+                 (from_square(square + up) & evaluation_information.pawn_attacks[~color])) {
+
+            bool open = !(fill(up, bb_square) & evaluation_information.pawns[~color]);
+            score += BACKWARDS_PAWN_PENALTY[open];
+            trace.backwards_pawn_penalty[open][color]++;
         }
     }
 
@@ -956,7 +964,7 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_single(coefficients, trace.square_of_the_pawn);
 
-    get_coefficient_single(coefficients, trace.backwards_pawn_penalty);
+    get_coefficient_array(coefficients, trace.backwards_pawn_penalty, 2);
 
     get_coefficient_array(coefficients, trace.passed_our_distance, 8);
     get_coefficient_array(coefficients, trace.passed_opp_distance, 8);
@@ -1002,7 +1010,7 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_single(parameters, SQUARE_OF_THE_PAWN);
 
-    get_initial_parameter_single(parameters, BACKWARDS_PAWN_PENALTY);
+    get_initial_parameter_array(parameters, BACKWARDS_PAWN_PENALTY, 2);
 
     get_initial_parameter_array(parameters, PASSED_OUR_DISTANCE, 8);
     get_initial_parameter_array(parameters, PASSED_OPP_DISTANCE, 8);
@@ -1054,7 +1062,7 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_single(ss, parameters_copy, index, "SQUARE_OF_THE_PAWN");
 
-    print_single(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY");
+    print_array(ss, parameters_copy, index, "BACKWARDS_PAWN_PENALTY", 2);
 
     print_array(ss, parameters_copy, index, "PASSED_OUR_DISTANCE", 8);
     print_array(ss, parameters_copy, index, "PASSED_OPP_DISTANCE", 8);
