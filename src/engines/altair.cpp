@@ -239,22 +239,20 @@ int evaluate(Position& position, Trace& trace) {
             scores_end[color] += PIECE_SQUARE_TABLES_END[pieceType][relative_square];
             trace.piece_square_tables[pieceType][relative_square][color]++;
 
-
+            /*
             if (pieceType == BISHOP && pieceBB) {
                 scores_mid[color] += BISHOP_PAIR_MID;
                 scores_end[color] += BISHOP_PAIR_END;
                 trace.bishop_pair[color]++;
             }
+            */
 
+            BITBOARD attacks = get_piece_attacks(static_cast<Piece>(piece), square, position.all_pieces);
+            BITBOARD mobility = attacks & ~position.get_pieces(color);
+            scores_mid[color] += popcount(mobility) * MOBILITY_MID[pieceType];
+            scores_end[color] += popcount(mobility) * MOBILITY_END[pieceType];
+            trace.mobility[pieceType][color] += popcount(mobility);
 
-            /*
-            if (pieceType != PAWN && pieceType != KING) {
-                BITBOARD attacks = get_piece_attacks(static_cast<Piece>(piece), square, position.all_pieces);
-                scores_mid[color] += popcount(attacks) * MOBILITY_MID[pieceType - 1];
-                scores_end[color] += popcount(attacks) * MOBILITY_END[pieceType - 1];
-                trace.mobility[pieceType - 1][color] += popcount(attacks);
-            }
-             */
         }
     }
 
@@ -414,8 +412,8 @@ static coefficients_t get_coefficients(const Trace& trace)
 
     get_coefficient_array_2d(coefficients, trace.piece_square_tables, 6, 64);
 
-    // get_coefficient_array(coefficients, trace.mobility, 4);
-    get_coefficient_single(coefficients, trace.bishop_pair);
+    get_coefficient_array(coefficients, trace.mobility, 6);
+    // get_coefficient_single(coefficients, trace.bishop_pair);
 
     get_coefficient_single(coefficients, trace.tempo);
     /*
@@ -434,8 +432,8 @@ parameters_t AltairEval::get_initial_parameters() {
 
     get_initial_parameter_array_2d_double(parameters, PIECE_SQUARE_TABLES_MID, PIECE_SQUARE_TABLES_END, 6, 64);
 
-    // get_initial_parameter_array_double(parameters, MOBILITY_MID, MOBILITY_END, 4);
-    get_initial_parameter_single_double(parameters, BISHOP_PAIR_MID, BISHOP_PAIR_END);
+    get_initial_parameter_array_double(parameters, MOBILITY_MID, MOBILITY_END, 6);
+    // get_initial_parameter_single_double(parameters, BISHOP_PAIR_MID, BISHOP_PAIR_END);
     get_initial_parameter_single_double(parameters, TEMPO_MID, TEMPO_END);
     /*
     get_initial_parameter_array_2d_double(parameters, PIECE_RANK_MID, PIECE_RANK_END, 6, 8);
@@ -478,9 +476,9 @@ void AltairEval::print_parameters(const parameters_t &parameters) {
 
     print_array_2d(ss, parameters_copy, index, "PIECE_SQUARE_TABLES", 6, 64);
 
-    // print_array(ss, parameters_copy, index, "MOBILITY", 4);
+    print_array(ss, parameters_copy, index, "MOBILITY", 6);
 
-    print_single(ss, parameters_copy, index, "BISHOP_PAIR");
+    // print_single(ss, parameters_copy, index, "BISHOP_PAIR");
 
     print_single(ss, parameters_copy, index, "TEMPO");
 

@@ -66,7 +66,7 @@ struct Trace {
     short piece_square_tables[6][64][2]{};
 
     short bishop_pair[2]{};
-    // short mobility[4][2]{};
+    short mobility[6][2]{};
 
     short tempo[2];
 };

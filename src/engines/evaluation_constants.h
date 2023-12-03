@@ -18,11 +18,11 @@ int PIECE_SQUARE_TABLES_MID[6][64]{};
 
 int PIECE_SQUARE_TABLES_END[6][64]{};
 
-// int MOBILITY_MID[4]{};
-// int MOBILITY_END[4]{};
+int MOBILITY_MID[6]{};
+int MOBILITY_END[6]{};
 
-int BISHOP_PAIR_MID = 0;
-int BISHOP_PAIR_END = 0;
+// int BISHOP_PAIR_MID = 0;
+// int BISHOP_PAIR_END = 0;
 
 int TEMPO_MID =   0;
 int TEMPO_END =   0;
